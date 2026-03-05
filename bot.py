@@ -24,7 +24,7 @@ def send_telegram(message):
     requests.post(url, json=payload)
 
 def get_mechanical_count(station):
-    for v in station["vehicle_types_available"]:
+    for v in station.get("vehicle_types_available", []):
         if v["vehicle_type_id"] == "mechanical":
             return v["count"]
     return 0
@@ -32,8 +32,8 @@ def get_mechanical_count(station):
 def compute_state(station):
 
     mechanical = get_mechanical_count(station)
-    vehicles = station["num_vehicles_available"]
-    docks = station["num_docks_available"]
+    vehicles = station.get["num_vehicles_available", 0]
+    docks = station.get["num_docks_available", 0]
 
     if vehicles == 0:
         return "EMPTY"
@@ -79,10 +79,22 @@ def message_for_state(name, state, mechanical, vehicles, docks):
 
     return message
 
+last_update = None
+
 def check():
+
+    global last_update
 
     r = requests.get(API_URL)
     data = r.json()
+
+    current_update = data.get("last_updated")
+
+    # Si aucune mise à jour depuis la dernière fois → on sort
+    if current_update == last_update:
+        return
+
+    last_update = current_update
 
     for station in data["data"]["stations"]:
 
@@ -94,8 +106,8 @@ def check():
         name = STATIONS[sid]
 
         mechanical = get_mechanical_count(station)
-        vehicles = station["num_vehicles_available"]
-        docks = station["num_docks_available"]
+        vehicles = station.get("num_vehicles_available", 0)
+        docks = station.get("num_docks_available", 0)
 
         state = compute_state(station)
 
@@ -116,6 +128,6 @@ while True:
     try:
         check()
     except Exception as e:
-        print("Erreur:", e)
+        print(f"Erreur API : {e}")
 
     time.sleep(60)
