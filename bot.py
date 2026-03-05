@@ -6,12 +6,23 @@ from datetime import datetime
 TOKEN = os.environ["TOKEN"]
 CHAT_ID = os.environ["CHAT_ID"]
 
-STATION_ID = "338"
-STATION_NAME = "GUILLAUMET - CEAT"
-
 API_URL = "https://api.cyclocity.fr/contracts/toulouse/gbfs/station_status.json"
 
-last_alert_state = "OK"
+# Stations surveillées automatiquement
+WATCHED_STATIONS = {
+    "338": "GUILLAUMET - CEAT",
+    "402": "GRYNFOGEL - GAILLARDIE"
+}
+
+# Stations autour du stade
+STADIUM_STATIONS = {
+    "287": "STADE TOULOUSAIN",
+    "308": "SEPT DENIERS - TROÈNES",
+    "131": "RTE DE BLAGNAC - BERNIES",
+    "307": "SUISSE - POLITKOVSKAIA"
+}
+
+last_alert_state = {}
 last_update_id = None
 
 
@@ -19,22 +30,30 @@ def log(msg):
     print(f"[BOT] {msg}", flush=True)
 
 
-def get_station_data():
+def get_all_stations():
 
     r = requests.get(API_URL, timeout=10)
     data = r.json()
 
+    stations = {}
+
     for station in data["data"]["stations"]:
 
-        if station["station_id"] == STATION_ID:
+        sid = station["station_id"]
 
-            mechanical = station.get("num_bikes_available_types", {}).get("mechanical", 0)
-            total = station.get("num_bikes_available", 0)
-            docks = station.get("num_docks_available", 0)
+        mechanical = 0
 
-            return mechanical, total, docks
+        for v in station.get("vehicle_types_available", []):
+            if v["vehicle_type_id"] == "mechanical":
+                mechanical = v["count"]
 
-    return None, None, None
+        stations[sid] = {
+            "mechanical": mechanical,
+            "total": station.get("num_vehicles_available", 0),
+            "docks": station.get("num_docks_available", 0)
+        }
+
+    return stations
 
 
 def send_telegram(message):
@@ -46,76 +65,110 @@ def send_telegram(message):
         "text": message
     }
 
-    requests.post(url, data=payload)
+    requests.post(url, json=payload)
 
 
-def format_alert(mechanical, total, docks):
+def format_station(name, data):
+
+    return (
+        f"🚲 {name}\n\n"
+        f"🚲 Vélos mécaniques : {data['mechanical']}\n"
+        f"🚲 Total vélos : {data['total']}\n"
+        f"🅿️ Places libres : {data['docks']}"
+    )
+
+
+def format_alert(name, data):
 
     now = datetime.now().strftime("%Hh%M")
 
     return (
         f"🚨 Alerte vélo\n\n"
         f"🕓 {now}\n"
-        f"🚲 {STATION_NAME}\n"
-        f"⚠️ Seulement {mechanical} vélo mécanique\n\n"
-        f"🚲 Vélos mécaniques : {mechanical}\n"
-        f"🚲 Total vélos : {total}\n"
-        f"🅿️ Places libres : {docks}"
+        f"🚲 {name}\n"
+        f"⚠️ Seulement {data['mechanical']} vélo mécanique\n\n"
+        f"🚲 Vélos mécaniques : {data['mechanical']}\n"
+        f"🚲 Total vélos : {data['total']}\n"
+        f"🅿️ Places libres : {data['docks']}"
     )
 
 
-def format_ok(mechanical):
+def format_ok(name, data):
 
     return (
         f"✅ Station redevenue OK\n\n"
-        f"🚲 {STATION_NAME}\n"
-        f"🚲 {mechanical} vélos mécaniques disponibles"
+        f"🚲 {name}\n"
+        f"🚲 {data['mechanical']} vélos mécaniques disponibles"
     )
 
 
-def format_status(mechanical, total, docks):
-
-    return (
-        f"🚲 {STATION_NAME}\n\n"
-        f"🚲 Vélos mécaniques : {mechanical}\n"
-        f"🚲 Total vélos : {total}\n"
-        f"🅿️ Places libres : {docks}"
-    )
-
-
-def check_station():
+def check_stations():
 
     global last_alert_state
 
-    mechanical, total, docks = get_station_data()
+    stations = get_all_stations()
 
-    if mechanical is None:
-        log("Station non trouvée")
-        return
+    for sid, name in WATCHED_STATIONS.items():
 
-    log(f"Station check → mécaniques={mechanical}")
+        if sid not in stations:
+            continue
 
-    if mechanical < 2:
+        data = stations[sid]
+        mechanical = data["mechanical"]
 
-        if last_alert_state != "LOW":
+        if sid not in last_alert_state:
+            last_alert_state[sid] = "OK"
 
-            msg = format_alert(mechanical, total, docks)
-            send_telegram(msg)
+        if mechanical < 2:
 
-            log("Alerte envoyée")
+            if last_alert_state[sid] != "LOW":
 
-            last_alert_state = "LOW"
+                send_telegram(format_alert(name, data))
+                log(f"Alerte envoyée {name}")
 
-    else:
+                last_alert_state[sid] = "LOW"
 
-        if last_alert_state == "LOW":
+        else:
 
-            msg = format_ok(mechanical)
-            send_telegram(msg)
+            if last_alert_state[sid] == "LOW":
 
-            log("Message retour OK envoyé")
+                send_telegram(format_ok(name, data))
+                log(f"Retour OK {name}")
 
-        last_alert_state = "OK"
+            last_alert_state[sid] = "OK"
+
+
+def command_station(sid, name):
+
+    stations = get_all_stations()
+
+    if sid not in stations:
+        return "Station non trouvée"
+
+    return format_station(name, stations[sid])
+
+
+def command_stadium():
+
+    stations = get_all_stations()
+
+    msg = "🏉 Stations autour du stade\n\n"
+
+    for sid, name in STADIUM_STATIONS.items():
+
+        if sid not in stations:
+            continue
+
+        data = stations[sid]
+
+        msg += (
+            f"🚲 {name}\n"
+            f"mécaniques : {data['mechanical']} | "
+            f"vélos : {data['total']} | "
+            f"places : {data['docks']}\n\n"
+        )
+
+    return msg
 
 
 def check_commands():
@@ -139,18 +192,34 @@ def check_commands():
         if "message" not in update:
             continue
 
-        text = update["message"].get("text", "")
-        chat = update["message"]["chat"]["id"]
+        text = update["message"].get("text", "").lower()
 
         if text == "/status":
 
-            mechanical, total, docks = get_station_data()
+            stations = get_all_stations()
 
-            msg = format_status(mechanical, total, docks)
+            msg = "🚲 Stations surveillées\n\n"
+
+            for sid, name in WATCHED_STATIONS.items():
+
+                if sid not in stations:
+                    continue
+
+                msg += format_station(name, stations[sid]) + "\n\n"
 
             send_telegram(msg)
 
-            log("Commande /status exécutée")
+        elif text == "/guillaumet":
+
+            send_telegram(command_station("338", "GUILLAUMET - CEAT"))
+
+        elif text == "/grynfogel":
+
+            send_telegram(command_station("402", "GRYNFOGEL - GAILLARDIE"))
+
+        elif text == "/stade":
+
+            send_telegram(command_stadium())
 
 
 log("Bot démarré")
@@ -159,7 +228,7 @@ while True:
 
     try:
 
-        check_station()
+        check_stations()
 
         check_commands()
 
