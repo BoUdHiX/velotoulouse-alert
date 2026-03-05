@@ -162,9 +162,9 @@ def command_stadium():
 
         msg += (
             f"🚏 {name}\n"
-            f"mécaniques : {data['mechanical']} | "
-            f"vélos : {data['total']} | "
-            f"places : {data['docks']}\n\n"
+            f"🔧 mécaniques : {data['mechanical']} | "
+            f"🚲 vélos dispos : {data['total']} | "
+            f"🅿️ places libres : {data['docks']}\n\n"
         )
 
     return msg
