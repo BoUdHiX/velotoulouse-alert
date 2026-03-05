@@ -71,8 +71,8 @@ def send_telegram(message):
 def format_station(name, data):
 
     return (
-        f"🚲 {name}\n\n"
-        f"🚲 Vélos mécaniques : {data['mechanical']}\n"
+        f"🚏 {name}\n\n"
+        f"🔧 Vélos mécaniques : {data['mechanical']}\n"
         f"🚲 Total vélos disponibles : {data['total']}\n"
         f"🅿️ Places libres : {data['docks']}"
     )
@@ -85,9 +85,8 @@ def format_alert(name, data):
     return (
         f"🚨 Alerte vélo\n\n"
         f"🕓 {now}\n"
-        f"🚲 {name}\n"
-        f"⚠️ Seulement {data['mechanical']} vélo mécanique\n\n"
-        f"🚲 Vélos mécaniques : {data['mechanical']}\n"
+        f"🚏 {name}\n"
+        f"🔧 Vélos mécaniques : {data['mechanical']}\n"
         f"🚲 Total vélos disponibles : {data['total']}\n"
         f"🅿️ Places libres : {data['docks']}"
     )
@@ -97,8 +96,8 @@ def format_ok(name, data):
 
     return (
         f"✅ Station redevenue OK\n\n"
-        f"🚲 {name}\n"
-        f"🚲 {data['mechanical']} vélos mécaniques disponibles"
+        f"🚏 {name}\n"
+        f"🔧 {data['mechanical']} vélos mécaniques disponibles"
     )
 
 
@@ -162,7 +161,7 @@ def command_stadium():
         data = stations[sid]
 
         msg += (
-            f"🚲 {name}\n"
+            f"🚏 {name}\n"
             f"mécaniques : {data['mechanical']} | "
             f"vélos : {data['total']} | "
             f"places : {data['docks']}\n\n"
