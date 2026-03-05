@@ -1,9 +1,10 @@
 import requests
 import time
+import os
 from datetime import datetime
 
-TOKEN = "8742649488:AAG6rmSuvXoA1CPEzimyisNnkIYBUa7muyI"
-CHAT_ID = "7510405579"
+TOKEN = os.environ["TOKEN"]
+CHAT_ID = os.environ["CHAT_ID"]
 
 API_URL = "https://api.cyclocity.fr/contracts/toulouse/gbfs/v2/station_status.json"
 
