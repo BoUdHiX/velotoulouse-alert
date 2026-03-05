@@ -49,7 +49,7 @@ def get_all_stations():
 
         stations[sid] = {
             "mechanical": mechanical,
-            "total": station.get("num_vehicles_available", 0),
+            "total": station.get("num_bikes_available", 0),
             "docks": station.get("num_docks_available", 0)
         }
 
@@ -73,7 +73,7 @@ def format_station(name, data):
     return (
         f"🚲 {name}\n\n"
         f"🚲 Vélos mécaniques : {data['mechanical']}\n"
-        f"🚲 Total vélos : {data['total']}\n"
+        f"🚲 Total vélos disponibles : {data['total']}\n"
         f"🅿️ Places libres : {data['docks']}"
     )
 
@@ -88,7 +88,7 @@ def format_alert(name, data):
         f"🚲 {name}\n"
         f"⚠️ Seulement {data['mechanical']} vélo mécanique\n\n"
         f"🚲 Vélos mécaniques : {data['mechanical']}\n"
-        f"🚲 Total vélos : {data['total']}\n"
+        f"🚲 Total vélos disponibles : {data['total']}\n"
         f"🅿️ Places libres : {data['docks']}"
     )
 
