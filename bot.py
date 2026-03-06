@@ -8,10 +8,16 @@ CHAT_ID = os.environ["CHAT_ID"]
 
 API_URL = "https://api.cyclocity.fr/contracts/toulouse/gbfs/station_status.json"
 
-# Stations surveillées automatiquement
+# Stations surveillées
 WATCHED_STATIONS = {
     "338": "GUILLAUMET - CEAT",
     "402": "GRYNFOGEL - GAILLARDIE"
+}
+
+# Stations proches si problème
+NEARBY_STATIONS = {
+    "338": ["408", "177", "212", "337"],
+    "402": ["387", "276"]
 }
 
 # Stations autour du stade
@@ -48,6 +54,7 @@ def get_all_stations():
                 mechanical = v["count"]
 
         stations[sid] = {
+            "name": station.get("name", ""),
             "mechanical": mechanical,
             "total": station.get("num_bikes_available", 0),
             "docks": station.get("num_docks_available", 0)
@@ -78,11 +85,41 @@ def format_station(name, data):
     )
 
 
-def format_alert(name, data):
+def format_nearby(sid, stations):
+
+    if sid not in NEARBY_STATIONS:
+        return ""
+
+    nearby_list = []
+
+    for nid in NEARBY_STATIONS[sid]:
+
+        if nid not in stations:
+            continue
+
+        s = stations[nid]
+
+        if s["mechanical"] > 0:
+            nearby_list.append((s["mechanical"], s["name"]))
+
+    if not nearby_list:
+        return "\n⚠️ Aucune station proche avec vélo mécanique."
+
+    nearby_list.sort(reverse=True)
+
+    msg = "\n📍 Stations proches avec vélos mécaniques :\n\n"
+
+    for mech, name in nearby_list:
+        msg += f"🚏 {name} : 🔧 {mech}\n"
+
+    return msg
+
+
+def format_alert(sid, name, data, stations):
 
     now = datetime.now().strftime("%Hh%M")
 
-    return (
+    msg = (
         f"🚨 Alerte vélo\n\n"
         f"🕓 {now}\n"
         f"🚏 {name}\n"
@@ -90,6 +127,11 @@ def format_alert(name, data):
         f"🚲 Total vélos disponibles : {data['total']}\n"
         f"🅿️ Places libres : {data['docks']}"
     )
+
+    if data["mechanical"] == 0:
+        msg += format_nearby(sid, stations)
+
+    return msg
 
 
 def format_ok(name, data):
@@ -144,7 +186,7 @@ def check_stations():
 
             else:
 
-                send_telegram(format_alert(name, data))
+                send_telegram(format_alert(sid, name, data, stations))
 
             log(f"Changement détecté {name} -> {state}")
 
@@ -160,7 +202,12 @@ def command_station(sid, name):
     if sid not in stations:
         return "Station non trouvée"
 
-    return format_station(name, stations[sid])
+    msg = format_station(name, stations[sid])
+
+    if stations[sid]["mechanical"] == 0:
+        msg += format_nearby(sid, stations)
+
+    return msg
 
 
 def command_stadium():
@@ -220,7 +267,14 @@ def check_commands():
                 if sid not in stations:
                     continue
 
-                msg += format_station(name, stations[sid]) + "\n\n"
+                data = stations[sid]
+
+                msg += format_station(name, data)
+
+                if data["mechanical"] == 0:
+                    msg += format_nearby(sid, stations)
+
+                msg += "\n\n"
 
             send_telegram(msg)
 
