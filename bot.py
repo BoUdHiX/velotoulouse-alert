@@ -154,7 +154,6 @@ def format_ok(name, data):
         f"🔧 {data['mechanical']} vélos mécaniques disponibles"
     )
 
-
 def check_stations():
 
     global last_alert_state
@@ -167,44 +166,39 @@ def check_stations():
             continue
 
         data = stations[sid]
-
         mechanical = data["mechanical"]
         total = data["total"]
         docks = data["docks"]
 
-        state = "OK"
-
+        # Niveau d'alerte
         if total == 0:
             state = "EMPTY"
-
         elif docks == 0:
             state = "FULL"
-
         elif mechanical == 0:
             state = "NO_MECH"
-
         elif mechanical < 2:
             state = "LOW_MECH"
+        else:
+            state = "OK"
 
+        # Si on n'a jamais vu cette station, on initialise
         if sid not in last_alert_state:
-            last_alert_state[sid] = state
+            last_alert_state[sid] = {"state": state, "mechanical": mechanical}
+            # On peut envoyer l'état initial
+            send_telegram(format_alert(sid, name, data, stations))
             continue
 
-        if last_alert_state[sid] != state:
-
+        # Alerte si le niveau change OU si le nombre de vélos mécaniques change
+        last = last_alert_state[sid]
+        if state != last["state"] or mechanical != last["mechanical"]:
             if state == "OK":
-
                 send_telegram(format_ok(name, data))
-
             else:
-
                 send_telegram(format_alert(sid, name, data, stations))
 
-            log(f"Changement détecté {name} -> {state}")
-
-            last_alert_state[sid] = state
-
-            log(f"{name} mécaniques = {mechanical}")
+            log(f"Changement détecté {name} -> {state}, mécaniques {mechanical}")
+            last_alert_state[sid] = {"state": state, "mechanical": mechanical}
 
 
 def command_station(sid, name):
