@@ -3,6 +3,7 @@ import time
 import os
 from datetime import datetime
 from zoneinfo import ZoneInfo
+import socket
 
 # Variables pour telegram
 TOKEN = os.environ["TOKEN"]
@@ -341,7 +342,7 @@ def check_commands():
 # Chargement des noms des stations au demarrage
 STATION_NAMES = load_station_names()
 
-log("Bot démarré")
+log(f"Bot démarré sur {socket.gethostname()}")
 
 while True:
 
