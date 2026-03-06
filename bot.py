@@ -2,6 +2,7 @@ import requests
 import time
 import os
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 # Variables pour telegram
 TOKEN = os.environ["TOKEN"]
@@ -131,7 +132,7 @@ def format_nearby(sid, stations):
 
 def format_alert(sid, name, data, stations):
 
-    now = datetime.now().strftime("%Hh%M")
+    now = datetime.now(ZoneInfo("Europe/Paris")).strftime("%Hh%M")
 
     msg = (
         f"🚨 Alerte vélo\n\n"
