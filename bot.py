@@ -7,6 +7,7 @@ TOKEN = os.environ["TOKEN"]
 CHAT_ID = os.environ["CHAT_ID"]
 
 API_URL = "https://api.cyclocity.fr/contracts/toulouse/gbfs/station_status.json"
+INFO_URL = "https://api.cyclocity.fr/contracts/toulouse/gbfs/station_information.json"
 
 # Stations surveillées
 WATCHED_STATIONS = {
@@ -35,6 +36,17 @@ last_update_id = None
 def log(msg):
     print(f"[BOT] {msg}", flush=True)
 
+def load_station_names():
+
+    r = requests.get(INFO_URL, timeout=10)
+    data = r.json()
+
+    names = {}
+
+    for station in data["data"]["stations"]:
+        names[station["station_id"]] = station["name"]
+
+    return names
 
 def get_all_stations():
 
@@ -54,7 +66,7 @@ def get_all_stations():
                 mechanical = v["count"]
 
         stations[sid] = {
-            "name": station.get("name", ""),
+            "name": STATION_NAMES.get(sid, ""),
             "mechanical": mechanical,
             "total": station.get("num_bikes_available", 0),
             "docks": station.get("num_docks_available", 0)
@@ -100,7 +112,7 @@ def format_nearby(sid, stations):
         s = stations[nid]
 
         if s["mechanical"] > 0:
-            nearby_list.append((s["mechanical"], s["name"]))
+            nearby_list.append((s["mechanical"], STATION_NAMES.get(nid, nid)))
 
     if not nearby_list:
         return "\n⚠️ Aucune station proche avec vélo mécanique."
@@ -214,7 +226,7 @@ def command_stadium():
 
     stations = get_all_stations()
 
-    msg = "🏉 Stations autour du stade\n\n"
+    msg = "🏉 Stations autour du stade ❤️🖤\n\n"
 
     for sid, name in STADIUM_STATIONS.items():
 
@@ -260,7 +272,7 @@ def check_commands():
 
             stations = get_all_stations()
 
-            msg = "🚲 Stations surveillées\n\n"
+            msg = "🎯 Stations surveillées\n\n"
 
             for sid, name in WATCHED_STATIONS.items():
 
@@ -290,6 +302,8 @@ def check_commands():
 
             send_telegram(command_stadium())
 
+# Chargement des noms des stations au demarrage
+STATION_NAMES = load_station_names()
 
 log("Bot démarré")
 
@@ -305,4 +319,4 @@ while True:
 
         log(f"Erreur : {e}")
 
-    time.sleep(60)
+    time.sleep(30)
