@@ -241,6 +241,37 @@ def command_stadium():
 
     return msg
 
+def command_near(sid):
+
+    stations = get_all_stations()
+
+    if sid not in NEARBY_STATIONS:
+        return "Aucune station proche configurée"
+
+    station_name = STATION_NAMES.get(sid, sid)
+
+    msg = f"📍 Stations proches {station_name} avec vélos mécaniques\n\n"
+
+    nearby_list = []
+
+    for nid in NEARBY_STATIONS[sid]:
+
+        if nid not in stations:
+            continue
+
+        s = stations[nid]
+        name = STATION_NAMES.get(nid, nid)
+
+        nearby_list.append((s["mechanical"], name))
+
+    # tri par nombre de vélos mécaniques
+    nearby_list.sort(reverse=True)
+
+    for mech, name in nearby_list:
+
+        msg += f"🚏 {name} : 🔧 {mech}\n"
+
+    return msg
 
 def check_commands():
 
@@ -298,6 +329,14 @@ def check_commands():
         elif text == "/stade":
 
             send_telegram(command_stadium())
+
+        elif text == "/near guillaumet":
+
+            send_telegram(command_near("338"))
+
+        elif text == "/near grynfogel":
+
+            send_telegram(command_near("402"))
 
 # Chargement des noms des stations au demarrage
 STATION_NAMES = load_station_names()
