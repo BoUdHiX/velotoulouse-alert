@@ -4,6 +4,7 @@ import os
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import socket
+import math 
 
 # Variables pour telegram
 TOKEN = os.environ["TOKEN"]
@@ -51,6 +52,23 @@ def load_station_names():
         names[station["station_id"]] = station["name"]
 
     return names
+    
+def load_station_info():
+
+    r = requests.get(INFO_URL, timeout=10)
+    data = r.json()
+
+    names = {}
+    coords = {}
+
+    for station in data["data"]["stations"]:
+
+        sid = station["station_id"]
+
+        names[sid] = station["name"]
+        coords[sid] = (station["lat"], station["lon"])
+
+    return names, coords
 
 def get_all_stations():
 
@@ -274,6 +292,71 @@ def command_near(sid):
 
     return msg
 
+def command_best_station(sid):
+
+    if sid not in STATION_COORDS:
+        return "Station inconnue"
+
+    lat, lon = STATION_COORDS[sid]
+
+    return best_station_from_point(lat, lon)
+    
+def distance(lat1, lon1, lat2, lon2):
+
+    R = 6371
+
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+
+    a = (
+        math.sin(dlat/2)**2
+        + math.cos(math.radians(lat1))
+        * math.cos(math.radians(lat2))
+        * math.sin(dlon/2)**2
+    )
+
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+
+    return R * c
+    
+def best_station_from_point(lat, lon):
+
+    stations = get_all_stations()
+
+    candidates = []
+
+    for sid, data in stations.items():
+
+        if sid not in STATION_COORDS:
+            continue
+
+        mechanical = data["mechanical"]
+
+        if mechanical == 0:
+            continue
+
+        slat, slon = STATION_COORDS[sid]
+
+        dist = distance(lat, lon, slat, slon)
+
+        candidates.append((dist, mechanical, sid))
+
+    if not candidates:
+        return "Aucune station avec vélos mécaniques"
+
+    candidates.sort()
+
+    dist, mech, sid = candidates[0]
+
+    name = STATION_NAMES.get(sid, sid)
+
+    return (
+        f"🏆 Meilleure station proche\n\n"
+        f"🚏 {name}\n"
+        f"🔧 {mech} vélos mécaniques\n"
+        f"📏 {round(dist*1000)} m"
+    )
+
 def check_commands():
 
     global last_update_id
@@ -296,6 +379,13 @@ def check_commands():
             continue
 
         text = update["message"].get("text", "").lower()
+
+        if "location" in update["message"]:
+
+            lat = update["message"]["location"]["latitude"]
+            lon = update["message"]["location"]["longitude"]
+
+            send_telegram(best_station_from_point(lat, lon))
 
         if text == "/status":
 
@@ -338,6 +428,14 @@ def check_commands():
         elif text == "/near grynfogel":
 
             send_telegram(command_near("402"))
+        
+        elif text == "/best guillaumet":
+
+            send_telegram(command_best_station("338"))
+
+        elif text == "/best grynfogel":
+
+            send_telegram(command_best_station("402"))
 
 # Chargement des noms des stations au demarrage
 STATION_NAMES = load_station_names()
@@ -351,6 +449,8 @@ while True:
         check_stations()
 
         check_commands()
+        
+        STATION_NAMES, STATION_COORDS = load_station_info()
 
     except Exception as e:
 
