@@ -3,9 +3,11 @@ import time
 import os
 from datetime import datetime
 
+# Variables pour telegram
 TOKEN = os.environ["TOKEN"]
 CHAT_ID = os.environ["CHAT_ID"]
 
+# url cyclocity
 API_URL = "https://api.cyclocity.fr/contracts/toulouse/gbfs/station_status.json"
 INFO_URL = "https://api.cyclocity.fr/contracts/toulouse/gbfs/station_information.json"
 
