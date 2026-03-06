@@ -113,28 +113,44 @@ def check_stations():
             continue
 
         data = stations[sid]
+
         mechanical = data["mechanical"]
+        total = data["total"]
+        docks = data["docks"]
+
+        state = "OK"
+
+        if total == 0:
+            state = "EMPTY"
+
+        elif docks == 0:
+            state = "FULL"
+
+        elif mechanical == 0:
+            state = "NO_MECH"
+
+        elif mechanical < 2:
+            state = "LOW_MECH"
 
         if sid not in last_alert_state:
-            last_alert_state[sid] = "OK"
+            last_alert_state[sid] = state
+            continue
 
-        if mechanical < 2:
+        if last_alert_state[sid] != state:
 
-            if last_alert_state[sid] != "LOW":
-
-                send_telegram(format_alert(name, data))
-                log(f"Alerte envoyée {name}")
-
-                last_alert_state[sid] = "LOW"
-
-        else:
-
-            if last_alert_state[sid] == "LOW":
+            if state == "OK":
 
                 send_telegram(format_ok(name, data))
-                log(f"Retour OK {name}")
 
-            last_alert_state[sid] = "OK"
+            else:
+
+                send_telegram(format_alert(name, data))
+
+            log(f"Changement détecté {name} -> {state}")
+
+            last_alert_state[sid] = state
+
+            log(f"{name} mécaniques = {mechanical}")
 
 
 def command_station(sid, name):
