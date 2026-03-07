@@ -4,29 +4,23 @@ import os
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import socket
-import math 
 
-# Variables pour telegram
 TOKEN = os.environ["TOKEN"]
 CHAT_ID = os.environ["CHAT_ID"]
 
-# url cyclocity
 API_URL = "https://api.cyclocity.fr/contracts/toulouse/gbfs/station_status.json"
 INFO_URL = "https://api.cyclocity.fr/contracts/toulouse/gbfs/station_information.json"
 
-# Stations surveillées
 WATCHED_STATIONS = {
     "338": "GUILLAUMET - CEAT",
     "402": "GRYNFOGEL - GAILLARDIE"
 }
 
-# Stations proches si problème
 NEARBY_STATIONS = {
     "338": ["408", "177", "212", "337"],
     "402": ["387", "276"]
 }
 
-# Stations autour du stade
 STADIUM_STATIONS = {
     "287": "STADE TOULOUSAIN",
     "308": "SEPT DENIERS - TROÈNES",
@@ -37,22 +31,9 @@ STADIUM_STATIONS = {
 last_alert_state = {}
 last_update_id = None
 
-
 def log(msg):
     print(f"[BOT] {msg}", flush=True)
 
-def load_station_names():
-
-    r = requests.get(INFO_URL, timeout=10)
-    data = r.json()
-
-    names = {}
-
-    for station in data["data"]["stations"]:
-        names[station["station_id"]] = station["name"]
-
-    return names
-    
 def load_station_info():
 
     r = requests.get(INFO_URL, timeout=10)
@@ -64,11 +45,10 @@ def load_station_info():
     for station in data["data"]["stations"]:
 
         sid = station["station_id"]
-
         names[sid] = station["name"]
         coords[sid] = (station["lat"], station["lon"])
 
-    return names, coords
+    return names
 
 def get_all_stations():
 
@@ -97,16 +77,87 @@ def get_all_stations():
     return stations
 
 
+def maps_link(station_id):
+
+    lat, lon = STATION_COORDS[station_id]
+
+    return f"https://www.google.com/maps/dir/?api=1&destination={lat},{lon}"
+
+
+def send_location(lat, lon):
+
+    url = f"https://api.telegram.org/bot{TOKEN}/sendLocation"
+
+    payload = {
+        "chat_id": CHAT_ID,
+        "latitude": lat,
+        "longitude": lon
+    }
+
+    requests.post(url, json=payload)
+
+
 def send_telegram(message):
 
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
 
     payload = {
         "chat_id": CHAT_ID,
-        "text": message
+        "text": message,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": True
     }
 
     requests.post(url, json=payload)
+
+
+def distance(lat1, lon1, lat2, lon2):
+
+    R = 6371
+
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+
+    a = (
+        math.sin(dlat/2)**2
+        + math.cos(math.radians(lat1))
+        * math.cos(math.radians(lat2))
+        * math.sin(dlon/2)**2
+    )
+
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+
+    return R * c
+
+
+def best_station_from_point(lat, lon):
+
+    stations = get_all_stations()
+
+    candidates = []
+
+    for sid, data in stations.items():
+
+        if sid not in STATION_COORDS:
+            continue
+
+        mechanical = data["mechanical"]
+
+        if mechanical == 0:
+            continue
+
+        slat, slon = STATION_COORDS[sid]
+
+        dist = distance(lat, lon, slat, slon)
+
+        candidates.append((dist, mechanical, sid))
+
+    if not candidates:
+        return None
+
+    candidates.sort()
+
+    return candidates[0]
 
 
 def format_station(name, data):
@@ -134,17 +185,24 @@ def format_nearby(sid, stations):
         s = stations[nid]
 
         if s["mechanical"] > 0:
-            nearby_list.append((s["mechanical"], STATION_NAMES.get(nid, nid)))
+            nearby_list.append((s["mechanical"], nid))
 
     if not nearby_list:
         return "\n⚠️ Aucune station proche avec vélo mécanique."
 
     nearby_list.sort(reverse=True)
 
-    msg = "\n📍 Stations proches avec vélos mécaniques :\n\n"
+    msg = (
+        "\n-------------------------------------------------------------\n"
+        "📍 Stations proches avec vélos mécaniques :\n\n"
+    )
 
-    for mech, name in nearby_list:
-        msg += f"🚏 {name} : 🔧 {mech}\n"
+    for mech, nid in nearby_list:
+
+        name = STATION_NAMES.get(nid, nid)
+        link = maps_link(nid)
+
+        msg += f"🚏 <a href='{link}'>{name}</a> : 🔧 {mech}\n"
 
     return msg
 
@@ -168,129 +226,63 @@ def format_alert(sid, name, data, stations):
     return msg
 
 
-def format_ok(name, data):
+def command_best_station_from_station(sid):
 
-    return (
-        f"✅ Station redevenue OK\n\n"
-        f"🚏 {name}\n"
-        f"🔧 {data['mechanical']} vélos mécaniques disponibles"
+    lat, lon = STATION_COORDS[sid]
+
+    result = best_station_from_point(lat, lon)
+
+    if not result:
+        return "Aucune station avec vélos mécaniques."
+
+    dist, mech, best_sid = result
+
+    name = STATION_NAMES[best_sid]
+
+    link = maps_link(best_sid)
+
+    msg = (
+        f"🏆 Meilleure station proche\n\n"
+        f"🚏 <a href='{link}'>{name}</a>\n"
+        f"🔧 {mech} vélos mécaniques\n"
+        f"📏 {round(dist*1000)} m\n"
+        f"🧭 <a href='{link}'>Ouvrir l’itinéraire</a>"
     )
 
-def check_stations():
+    lat_station, lon_station = STATION_COORDS[best_sid]
 
-    global last_alert_state
-
-    stations = get_all_stations()
-
-    for sid, name in WATCHED_STATIONS.items():
-
-        if sid not in stations:
-            continue
-
-        data = stations[sid]
-        mechanical = data["mechanical"]
-        total = data["total"]
-        docks = data["docks"]
-
-        # Niveau d'alerte
-        if total == 0:
-            state = "EMPTY"
-        elif docks == 0:
-            state = "FULL"
-        elif mechanical == 0:
-            state = "NO_MECH"
-        elif mechanical < 2:
-            state = "LOW_MECH"
-        else:
-            state = "OK"
-
-        # Si on n'a jamais vu cette station, on initialise
-        if sid not in last_alert_state:
-            last_alert_state[sid] = {"state": state, "mechanical": mechanical}
-            # On peut envoyer l'état initial
-            send_telegram(format_alert(sid, name, data, stations))
-            continue
-
-        # Alerte si le niveau change OU si le nombre de vélos mécaniques change
-        last = last_alert_state[sid]
-        if state != last["state"] or mechanical != last["mechanical"]:
-            if state == "OK":
-                send_telegram(format_ok(name, data))
-            else:
-                send_telegram(format_alert(sid, name, data, stations))
-
-            log(f"Changement détecté {name} -> {state}, mécaniques {mechanical}")
-            last_alert_state[sid] = {"state": state, "mechanical": mechanical}
+    send_telegram(msg)
+    send_location(lat_station, lon_station)
 
 
-def command_station(sid, name):
+def command_best_from_user(lat, lon):
 
-    stations = get_all_stations()
+    result = best_station_from_point(lat, lon)
 
-    if sid not in stations:
-        return "Station non trouvée"
+    if not result:
+        send_telegram("Aucune station avec vélos mécaniques.")
+        return
 
-    msg = format_station(name, stations[sid])
+    dist, mech, sid = result
 
-    if stations[sid]["mechanical"] == 0:
-        msg += format_nearby(sid, stations)
+    name = STATION_NAMES[sid]
 
-    return msg
+    link = maps_link(sid)
 
+    msg = (
+        f"🏆 Meilleure station proche\n\n"
+        f"🚏 <a href='{link}'>{name}</a>\n"
+        f"🔧 {mech} vélos mécaniques\n"
+        f"📏 {round(dist*1000)} m\n"
+        f"🧭 <a href='{link}'>Ouvrir l’itinéraire</a>"
+    )
 
-def command_stadium():
+    send_telegram(msg)
 
-    stations = get_all_stations()
+    lat_station, lon_station = STATION_COORDS[sid]
 
-    msg = "🏉 Stations autour du stade ❤️🖤\n\n"
+    send_location(lat_station, lon_station)
 
-    for sid, name in STADIUM_STATIONS.items():
-
-        if sid not in stations:
-            continue
-
-        data = stations[sid]
-
-        msg += (
-            f"🚏 {name}\n"
-            f"🔧 mécaniques : {data['mechanical']} | "
-            f"🚲 vélos dispos : {data['total']} | "
-            f"🅿️ places libres : {data['docks']}\n\n"
-        )
-
-    return msg
-
-def command_near(sid):
-
-    stations = get_all_stations()
-
-    if sid not in NEARBY_STATIONS:
-        return "Aucune station proche configurée"
-
-    station_name = STATION_NAMES.get(sid, sid)
-
-    msg = f"📍 Stations proches {station_name} avec vélos mécaniques\n\n"
-
-    nearby_list = []
-
-    for nid in NEARBY_STATIONS[sid]:
-
-        if nid not in stations:
-            continue
-
-        s = stations[nid]
-        name = STATION_NAMES.get(nid, nid)
-
-        nearby_list.append((s["mechanical"], name))
-
-    # tri par nombre de vélos mécaniques
-    nearby_list.sort(reverse=True)
-
-    for mech, name in nearby_list:
-
-        msg += f"🚏 {name} : 🔧 {mech}\n"
-
-    return msg
 
 def command_best_station(sid):
 
@@ -378,64 +370,25 @@ def check_commands():
         if "message" not in update:
             continue
 
-        text = update["message"].get("text", "").lower()
-
-        if "location" in update["message"]:
-
-            lat = update["message"]["location"]["latitude"]
-            lon = update["message"]["location"]["longitude"]
-
-            send_telegram(best_station_from_point(lat, lon))
+        message = update["message"]
 
         if text == "/status":
 
-            stations = get_all_stations()
+            lat = message["location"]["latitude"]
+            lon = message["location"]["longitude"]
 
-            msg = "🎯 Stations surveillées\n\n"
+            command_best_from_user(lat, lon)
+            continue
 
-            for sid, name in WATCHED_STATIONS.items():
+        text = message.get("text", "").lower()
 
-                if sid not in stations:
-                    continue
+        if text == "/best guillaumet":
 
-                data = stations[sid]
-
-                msg += format_station(name, data)
-
-                if data["mechanical"] == 0:
-                    msg += format_nearby(sid, stations)
-
-                msg += "\n\n"
-
-            send_telegram(msg)
-
-        elif text == "/guillaumet":
-
-            send_telegram(command_station("338", "GUILLAUMET - CEAT"))
-
-        elif text == "/grynfogel":
-
-            send_telegram(command_station("402", "GRYNFOGEL - GAILLARDIE"))
-
-        elif text == "/stade":
-
-            send_telegram(command_stadium())
-
-        elif text == "/near guillaumet":
-
-            send_telegram(command_near("338"))
-
-        elif text == "/near grynfogel":
-
-            send_telegram(command_near("402"))
-        
-        elif text == "/best guillaumet":
-
-            send_telegram(command_best_station("338"))
+            command_best_station_from_station("338")
 
         elif text == "/best grynfogel":
 
-            send_telegram(command_best_station("402"))
+            send_telegram(command_near("402"))
 
 # Chargement des noms des stations au demarrage
 STATION_NAMES = load_station_names()
