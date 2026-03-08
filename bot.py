@@ -408,6 +408,57 @@ def handle_callback(callback):
 
     data = callback["data"]
 
+    if data == "menu_status":
+            stations = get_all_stations()
+
+            msg = "🎯 Stations surveillées\n\n"
+
+            for sid, name in WATCHED_STATIONS.items():
+
+                if sid not in stations:
+                    continue
+
+                msg += format_station(name, stations[sid]) + "\n\n"
+
+            send_telegram(msg)
+
+
+    elif data == "menu_best":
+
+            send_telegram("📍 Envoie ta position Telegram.")
+
+
+    elif data == "menu_guillaumet":
+
+            send_telegram(command_station("338", "GUILLAUMET - CEAT"))
+
+
+    elif data == "menu_grynfogel":
+
+            send_telegram(command_station("402", "GRYNFOGEL - GAILLARDIE"))
+
+
+     elif data == "menu_near_guillaumet":
+
+            send_telegram(command_near("338"))
+
+
+    elif data == "menu_near_grynfogel":
+
+            send_telegram(command_near("402"))
+
+
+    elif data == "menu_mode":
+
+            command_mode()
+
+
+    elif data == "menu_type":
+
+            command_type()
+
+
+
     if data == "type_mechanical":
         BIKE_TYPE = "mechanical"
 
@@ -423,6 +474,9 @@ def handle_callback(callback):
         f"⚙️ Mode du bot modifié\n\n"
         f"{bike_icon()} {bike_label()}"
     )
+
+    command_menu()
+
 
 # ---------------------------
 # Vérification stations
@@ -518,6 +572,51 @@ def check_stations():
 
             last_alert_state[sid] = {"state": state, "bikes": bikes}
 
+# ---------------------------
+# Menu des commandes Telegram
+# ---------------------------
+
+def command_menu():
+
+    keyboard = {
+        "inline_keyboard": [
+
+            [
+                {"text": "📊 Status", "callback_data": "menu_status"},
+                {"text": "🏆 Meilleure station", "callback_data": "menu_best"}
+            ],
+
+            [
+                {"text": "🚏 Guillaumet", "callback_data": "menu_guillaumet"},
+                {"text": "🚏 Grynfogel", "callback_data": "menu_grynfogel"}
+            ],
+
+            [
+                {"text": "📍 Near Guillaumet", "callback_data": "menu_near_guillaumet"},
+                {"text": "📍 Near Grynfogel", "callback_data": "menu_near_grynfogel"}
+            ],
+
+            [
+                {"text": "⚙️ Mode", "callback_data": "menu_mode"},
+                {"text": "⚙️ Type", "callback_data": "menu_type"}
+            ]
+
+        ]
+    }
+
+    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+
+    msg = (
+        "🚲 <b>Menu du bot vélos Toulouse</b>\n\n"
+        f"⚙️ Mode actuel : {bike_icon()} {bike_label()}"
+    )
+
+    requests.post(url, json={
+        "chat_id": CHAT_ID,
+        "text": msg,
+        "parse_mode": "HTML",
+        "reply_markup": keyboard
+    })
 
 # ---------------------------
 # Commandes Telegram
@@ -575,6 +674,10 @@ def check_commands():
                 msg += format_station(name, stations[sid]) + "\n\n"
 
             send_telegram(msg)
+
+        elif text == "/menu":
+
+            command_menu()
 
         elif text == "/type":
 
