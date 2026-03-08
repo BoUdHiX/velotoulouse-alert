@@ -69,12 +69,12 @@ def log(msg):
 def bike_label():
 
     if BIKE_TYPE == "mechanical":
-        return "vélos mécaniques"
+        return "Vélos mécaniques"
 
     if BIKE_TYPE == "electrical":
-        return "vélos électriques"
+        return "Vélos électriques"
 
-    return "vélos"
+    return "Vélos"
 
 # ---------------------------
 # Icone
