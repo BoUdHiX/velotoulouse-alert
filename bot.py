@@ -438,7 +438,7 @@ def handle_callback(callback):
             send_telegram(command_station("402", "GRYNFOGEL - GAILLARDIE"))
 
 
-     elif data == "menu_near_guillaumet":
+    elif data == "menu_near_guillaumet":
 
             send_telegram(command_near("338"))
 
