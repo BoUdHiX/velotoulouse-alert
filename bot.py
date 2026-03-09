@@ -248,7 +248,7 @@ def send_telegram(text, keyboard=None):
         payload["reply_markup"] = keyboard
 
     requests.post(
-        f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+        f"https://api.telegram.org/bot{TOKEN}/sendMessage",
         json=payload
     )
 
@@ -462,7 +462,7 @@ def command_mode():
 def answer_callback(callback_id):
 
     requests.post(
-        f"https://api.telegram.org/bot{BOT_TOKEN}/answerCallbackQuery",
+        f"https://api.telegram.org/bot{TOKEN}/answerCallbackQuery",
         json={
             "callback_query_id": callback_id
         }
