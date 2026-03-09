@@ -476,7 +476,8 @@ def handle_callback(callback):
 
 
     elif data == "menu_best":
-    request_location()
+        
+        request_location()
 
 
     elif data == "menu_guillaumet":
