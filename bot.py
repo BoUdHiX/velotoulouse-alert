@@ -243,7 +243,8 @@ def send_telegram(text, keyboard=None):
 
     payload = {
         "chat_id": CHAT_ID,
-        "text": text
+        "text": text,
+        "parse_mode": "HTML"
     }
 
     if keyboard:
@@ -452,10 +453,11 @@ def command_type():
 
 def command_mode():
 
-    send_telegram(
+    msg = (
         f"⚙️ Mode actuel du bot\n\n"
         f"{bike_icon()} {bike_label()}"
     )
+    send_telegram(msg)
 
 # ---------------------------
 # Reponse callback
