@@ -237,18 +237,20 @@ def get_all_stations():
 # Telegram message
 # ---------------------------
 
-def send_telegram(message):
-
-    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+def send_telegram(text, keyboard=None):
 
     payload = {
         "chat_id": CHAT_ID,
-        "text": message,
-        "parse_mode": "HTML"
+        "text": text
     }
 
-    requests.post(url, json=payload)
+    if keyboard:
+        payload["reply_markup"] = keyboard
 
+    requests.post(
+        f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+        json=payload
+    )
 
 # ---------------------------
 # Station info
@@ -352,6 +354,9 @@ def format_alert(sid, name, data, stations):
 
     return msg
 
+# ---------------------------
+# Retour normal station
+# ---------------------------
 
 def format_ok(name, data):
 
@@ -407,6 +412,9 @@ def best_station_from_point(lat, lon):
 
     return msg
 
+# ---------------------------
+# Coordonnée pour best station
+# ---------------------------
 
 def command_best_station(sid):
 
@@ -448,11 +456,26 @@ def command_mode():
     )
 
 # ---------------------------
+# Reponse callback
+# ---------------------------
+
+def answer_callback(callback_id):
+
+    requests.post(
+        f"https://api.telegram.org/bot{BOT_TOKEN}/answerCallbackQuery",
+        json={
+            "callback_query_id": callback_id
+        }
+    )
+
+# ---------------------------
 # Gestion des boutons
 # ---------------------------
 
 def handle_callback(callback):
 
+    answer_callback(callback["id"])
+    
     global BIKE_TYPE
 
     data = callback["data"]
@@ -559,6 +582,10 @@ def command_station(sid, name):
         msg += format_nearby(sid, stations)
 
     return msg
+    
+# ---------------------------
+# Pour commande proche
+# ---------------------------
 
 def command_near(sid):
 
@@ -592,6 +619,10 @@ def command_near(sid):
         msg += f"🚏 <a href='{link}'>{name}</a> : 🔧 {mech}\n"
 
     return msg
+
+# ---------------------------
+# Verif des stations
+# ---------------------------
 
 def check_stations():
 
@@ -786,7 +817,7 @@ def check_commands():
 
 
 # ---------------------------
-# Initialisation
+# Initialisations
 # ---------------------------
 
 STATION_NAMES, STATION_COORDS = load_station_info()
