@@ -19,7 +19,7 @@ WATCHED_STATIONS = {
 }
 
 NEARBY_STATIONS = {
-    "338": ["408", "177", "212", "337"],
+    "338": ["408", "177", "212", "337", "178", "179"],
     "402": ["387", "276"]
 }
 
@@ -111,6 +111,30 @@ def load_station_info():
 
     return names, coords
 
+# ---------------------------
+# Fonction demande position
+# ---------------------------
+
+def request_location():
+
+    keyboard = {
+        "keyboard": [
+            [
+                {
+                    "text": "📍 Envoyer ma position",
+                    "request_location": True
+                }
+            ]
+        ],
+        "resize_keyboard": True,
+        "one_time_keyboard": True
+    }
+
+    send_telegram(
+        "🏆 Trouver la meilleure station\n\n"
+        "Appuie sur le bouton pour envoyer ta position.",
+        keyboard
+    )
 
 # ---------------------------
 # Distance GPS
@@ -280,6 +304,31 @@ def format_nearby(sid, stations):
 
     return msg
 
+# ---------------------------
+# Fonction Stade Toulousain 
+# ---------------------------
+
+def command_stadium():
+
+    stations = get_all_stations()
+
+    msg = "🏉 Stations autour du stade ❤️🖤\n\n"
+
+    for sid, name in STADIUM_STATIONS.items():
+
+        if sid not in stations:
+            continue
+
+        data = stations[sid]
+
+        msg += (
+            f"🚏 {name}\n"
+            f"{bike_icon()} {bike_label()} : {data['bikes']} | "
+            f"🚲 Total : {data['total']} | "
+            f"🅿️ Places : {data['docks']}\n\n"
+        )
+
+    return msg
 
 # ---------------------------
 # Alerte
@@ -408,75 +457,82 @@ def handle_callback(callback):
 
     data = callback["data"]
 
+    # -------- MENU --------
+
     if data == "menu_status":
-            stations = get_all_stations()
 
-            msg = "🎯 Stations surveillées\n\n"
+        stations = get_all_stations()
 
-            for sid, name in WATCHED_STATIONS.items():
+        msg = "🎯 Stations surveillées\n\n"
 
-                if sid not in stations:
-                    continue
+        for sid, name in WATCHED_STATIONS.items():
 
-                msg += format_station(name, stations[sid]) + "\n\n"
+            if sid not in stations:
+                continue
 
-            send_telegram(msg)
+            msg += format_station(name, stations[sid]) + "\n\n"
+
+        send_telegram(msg)
 
 
     elif data == "menu_best":
-
-            send_telegram("📍 Envoie ta position Telegram.")
+    request_location()
 
 
     elif data == "menu_guillaumet":
 
-            send_telegram(command_station("338", "GUILLAUMET - CEAT"))
+        send_telegram(command_station("338", "GUILLAUMET - CEAT"))
 
 
     elif data == "menu_grynfogel":
 
-            send_telegram(command_station("402", "GRYNFOGEL - GAILLARDIE"))
+        send_telegram(command_station("402", "GRYNFOGEL - GAILLARDIE"))
 
 
     elif data == "menu_near_guillaumet":
 
-            send_telegram(command_near("338"))
+        send_telegram(command_near("338"))
 
 
     elif data == "menu_near_grynfogel":
 
-            send_telegram(command_near("402"))
+        send_telegram(command_near("402"))
+
+
+    elif data == "menu_stade":
+
+        send_telegram(command_stadium())
 
 
     elif data == "menu_mode":
 
-            command_mode()
+        command_mode()
 
 
     elif data == "menu_type":
 
-            command_type()
+        command_type()
 
 
+    # -------- TYPE VELO --------
 
-    if data == "type_mechanical":
+    elif data == "type_mechanical":
+
         BIKE_TYPE = "mechanical"
+        save_config()
+        command_menu()
 
     elif data == "type_electrical":
+
         BIKE_TYPE = "electrical"
+        save_config()
+        command_menu()
 
     elif data == "type_both":
+
         BIKE_TYPE = "both"
-
-    save_config()
-
-    send_telegram(
-        f"⚙️ Mode du bot modifié\n\n"
-        f"{bike_icon()} {bike_label()}"
-    )
-
-    command_menu()
-
+        save_config()
+        command_menu()
 
 # ---------------------------
 # Vérification stations
@@ -579,30 +635,34 @@ def check_stations():
 def command_menu():
 
     keyboard = {
-        "inline_keyboard": [
+    "inline_keyboard": [
 
-            [
-                {"text": "📊 Status", "callback_data": "menu_status"},
-                {"text": "🏆 Meilleure station", "callback_data": "menu_best"}
-            ],
+        [
+            {"text": "📊 Status", "callback_data": "menu_status"},
+            {"text": "🏆 Meilleure station", "callback_data": "menu_best"}
+        ],
 
-            [
-                {"text": "🚏 Guillaumet", "callback_data": "menu_guillaumet"},
-                {"text": "🚏 Grynfogel", "callback_data": "menu_grynfogel"}
-            ],
+        [
+            {"text": "🚏 Guillaumet", "callback_data": "menu_guillaumet"},
+            {"text": "🚏 Grynfogel", "callback_data": "menu_grynfogel"}
+        ],
 
-            [
-                {"text": "📍 Near Guillaumet", "callback_data": "menu_near_guillaumet"},
-                {"text": "📍 Near Grynfogel", "callback_data": "menu_near_grynfogel"}
-            ],
+        [
+            {"text": "📍 Near Guillaumet", "callback_data": "menu_near_guillaumet"},
+            {"text": "📍 Near Grynfogel", "callback_data": "menu_near_grynfogel"}
+        ],
 
-            [
-                {"text": "⚙️ Mode", "callback_data": "menu_mode"},
-                {"text": "⚙️ Type", "callback_data": "menu_type"}
-            ]
+        [
+            {"text": "🏉 Stade Toulousain", "callback_data": "menu_stade"}
+        ],
 
+        [
+            {"text": "⚙️ Mode", "callback_data": "menu_mode"},
+            {"text": "⚙️ Type", "callback_data": "menu_type"}
         ]
-    }
+
+    ]
+}
 
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
 
@@ -656,6 +716,11 @@ def check_commands():
             lon = message["location"]["longitude"]
 
             send_telegram(best_station_from_point(lat, lon))
+
+            # supprimer le clavier "envoyer position"
+            keyboard = {"remove_keyboard": True}
+            send_telegram("📍 Position reçue", keyboard)
+
             continue
 
         text = message.get("text", "").lower()
@@ -703,9 +768,12 @@ def check_commands():
 
             send_telegram(command_near("402"))
 
-        elif text == "/best":
+        elif text == "/stade":
 
-            send_telegram("📍 Envoie ta position Telegram.")
+            send_telegram(command_stadium())
+
+        elif text == "/best":
+            request_location()
 
         elif text == "/best guillaumet":
 
