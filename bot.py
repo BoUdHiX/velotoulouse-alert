@@ -414,6 +414,7 @@ def check_work_route():
         msg += (
             "🏠 Station Guillaumet\n"
             f"{bike_icon()} {bike_label()} : {s['bikes']}\n"
+            f"🚲 Vélos présents : {s['total']}\n"
             f"🅿️ Places libres : {s['docks']}\n"
         )
 
@@ -429,6 +430,7 @@ def check_work_route():
 
         msg += (
             "\n🏢 Station Grynfogel\n"
+            f"{bike_icon()} {bike_label()} : {s['bikes']}\n"
             f"🚲 Vélos présents : {s['total']}\n"
             f"🅿️ Places libres : {s['docks']}\n"
         )
@@ -729,7 +731,7 @@ def command_near(sid):
         name = STATION_NAMES.get(nid, nid)
         link = maps_link(nid)
 
-        msg += f"🚏 <a href='{link}'>{name}</a> : 🔧 {mech}\n"
+        msg += f"🚏 <a href='{link}'>{name}</a> : {bike_icon()} {mech}\n"
 
     return msg
 
