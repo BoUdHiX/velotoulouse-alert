@@ -310,6 +310,65 @@ def format_nearby(sid, stations):
     return msg
 
 # ---------------------------
+# Fonction pour stations avec places libres
+# ---------------------------
+
+def format_nearby_docks(sid, stations):
+
+    if sid not in NEARBY_STATIONS:
+        return ""
+
+    nearby_list = []
+
+    for nid in NEARBY_STATIONS[sid]:
+
+        if nid not in stations:
+            continue
+
+        s = stations[nid]
+
+        if s["docks"] > 0:
+            nearby_list.append((s["docks"], nid))
+
+    if not nearby_list:
+        return "\n⚠️ Aucune station proche avec places libres."
+
+    nearby_list.sort(reverse=True)
+
+    msg = "\n-------------------------------------------------------------\n"
+    msg += "📍 Stations proches avec places libres :\n\n"
+
+    for docks, sid2 in nearby_list:
+
+        name = STATION_NAMES.get(sid2, sid2)
+        link = maps_link(sid2)
+
+        msg += f"🚏 <a href='{link}'>{name}</a> : 🅿️ {docks}\n"
+
+    return msg
+
+# ---------------------------
+# Fonction pour d’alerte station pleine
+# ---------------------------
+
+def format_full_alert(sid, name, data, stations):
+
+    now = datetime.now(ZoneInfo("Europe/Paris")).strftime("%Hh%M")
+
+    msg = (
+        f"🚨 Station pleine\n\n"
+        f"🕓 {now}\n"
+        f"🚏 {name}\n"
+        f"🚲 Vélos présents : {data['total']}\n"
+        f"🅿️ Places libres : {data['docks']}\n"
+    )
+
+    msg += format_nearby_docks(sid, stations)
+
+    return msg
+
+
+# ---------------------------
 # Fonction Stade Toulousain 
 # ---------------------------
 
@@ -336,6 +395,51 @@ def command_stadium():
     return msg
 
 # ---------------------------
+# fonction pour verif stations home et boulot
+# ---------------------------
+
+def check_work_route():
+
+    stations = get_all_stations()
+
+    msg = "🚲 Etat du trajet travail\n\n"
+
+    # Guillaumet → vélos disponibles
+    sid_home = "338"
+
+    if sid_home in stations:
+
+        s = stations[sid_home]
+
+        msg += (
+            "🏠 Départ Guillaumet\n"
+            f"{bike_icon()} {bike_label()} : {s['bikes']}\n"
+            f"🅿️ Places libres : {s['docks']}\n\n"
+        )
+
+        if s["bikes"] == 0:
+            msg += format_nearby(sid_home, stations)
+
+    # Grynfogel → places libres
+    sid_work = "402"
+
+    if sid_work in stations:
+
+        s = stations[sid_work]
+
+        msg += (
+            "\n🏢 Arrivée Grynfogel\n"
+            f"🚲 Vélos présents : {s['total']}\n"
+            f"🅿️ Places libres : {s['docks']}\n"
+        )
+
+        if s["docks"] == 0:
+            msg += format_nearby_docks(sid_work, stations)
+
+    send_telegram(msg)
+
+
+# ---------------------------
 # Alerte
 # ---------------------------
 
@@ -347,7 +451,7 @@ def format_alert(sid, name, data, stations):
         f"🚨 Alerte vélo\n\n"
         f"🕓 {now}\n"
         f"🚏 {name}\n"
-        f"🔧 {bike_label()} : {data['bikes']}\n"
+        f"{bike_icon()} {bike_label()} : {data['bikes']}\n"
         f"🚲 Total vélos disponibles : {data['total']}\n"
         f"🅿️ Places libres : {data['docks']}"
     )
@@ -366,7 +470,7 @@ def format_ok(name, data):
     return (
         f"✅ Station redevenue OK\n\n"
         f"🚏 {name}\n"
-        f"🔧 {data['bikes']} {bike_label()} disponibles"
+        f"{bike_icon()} {data['bikes']} {bike_label()} disponibles"
     )
 
 
@@ -407,7 +511,7 @@ def best_station_from_point(lat, lon):
     msg = (
         f"🏆 Meilleure station proche\n\n"
         f"🚏 <a href='{maps_link(sid)}'>{name}</a>\n"
-        f"🔧 {mech} {bike_label()}\n"
+        f"{bike_icon()} {mech} {bike_label()}\n"
         f"📏 {round(dist*1000)} m"
     )
 
@@ -532,6 +636,11 @@ def handle_callback(callback):
         send_telegram(command_stadium())
 
 
+    elif data == "menu_work":
+    
+        check_work_route()
+
+
     elif data == "menu_mode":
 
         command_mode()
@@ -577,7 +686,7 @@ def command_station(sid, name):
 
     msg = (
         f"🚏 {name}\n\n"
-        f"🔧 {bike_label()} : {data['bikes']}\n"
+        f"{bike_icon()} {bike_label()} : {data['bikes']}\n"
         f"🚲 Total vélos disponibles : {data['total']}\n"
         f"🅿️ Places libres : {data['docks']}"
     )
@@ -647,6 +756,9 @@ def check_stations():
         if bikes == 0:
             state = "NO_MECH"
 
+        elif data["docks"] == 0:
+            state = "FULL"
+
         if sid not in last_alert_state:
 
             last_alert_state[sid] = {"state": state, "bikes": bikes}
@@ -656,12 +768,19 @@ def check_stations():
         last = last_alert_state[sid]
 
         if state != last["state"] or bikes != last["bikes"]:
-
+        
             if state == "OK":
+        
                 send_telegram(format_ok(name, data))
+        
+            elif state == "FULL":
+        
+                send_telegram(format_full_alert(sid, name, data, stations))
+        
             else:
+        
                 send_telegram(format_alert(sid, name, data, stations))
-
+        
             last_alert_state[sid] = {"state": state, "bikes": bikes}
 
 # ---------------------------
@@ -687,7 +806,11 @@ def command_menu():
             {"text": "📍 Near Guillaumet", "callback_data": "menu_near_guillaumet"},
             {"text": "📍 Near Grynfogel", "callback_data": "menu_near_grynfogel"}
         ],
-
+        
+        [
+            {"text": "🏢 Work", "callback_data": "menu_work"}
+        ],
+        
         [
             {"text": "🏉 Stade Toulousain", "callback_data": "menu_stade"}
         ],
@@ -807,6 +930,17 @@ def check_commands():
         elif text == "/stade":
 
             send_telegram(command_stadium())
+
+        elif text == "/work":
+        
+            send_telegram(
+                "🚲 Mode trajet travail activé\n\n"
+                " Surveillance actuelle :\n"
+                "• vélos disponibles à Guillaumet\n"
+                "• places libres à Grynfogel"
+            )
+        
+            check_work_route()
 
         elif text == "/best":
             request_location()
