@@ -402,7 +402,7 @@ def check_work_route():
 
     stations = get_all_stations()
 
-    msg = "🚲 Etat du trajet travail\n\n"
+    msg = "🚲 Etat du trajet maison/travail 🔄\n\n"
 
     # Guillaumet → vélos disponibles
     sid_home = "338"
@@ -412,9 +412,9 @@ def check_work_route():
         s = stations[sid_home]
 
         msg += (
-            "🏠 Départ Guillaumet\n"
+            "🏠 Station Guillaumet\n"
             f"{bike_icon()} {bike_label()} : {s['bikes']}\n"
-            f"🅿️ Places libres : {s['docks']}\n\n"
+            f"🅿️ Places libres : {s['docks']}\n"
         )
 
         if s["bikes"] == 0:
@@ -428,7 +428,7 @@ def check_work_route():
         s = stations[sid_work]
 
         msg += (
-            "\n🏢 Arrivée Grynfogel\n"
+            "\n🏢 Station Grynfogel\n"
             f"🚲 Vélos présents : {s['total']}\n"
             f"🅿️ Places libres : {s['docks']}\n"
         )
