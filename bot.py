@@ -120,7 +120,8 @@ def generate_day_chart(station_id, station_name):
     df = pd.read_sql_query(query, conn, params=(station_id,))
     conn.close()
   
-    df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.tz_localize("Europe/Paris")
+    df["timestamp"] = pd.to_datetime(df["timestamp"])
+df["timestamp"] = df["timestamp"].dt.tz_localize(None)
 
     now = datetime.now(ZoneInfo("Europe/Paris"))
 
@@ -173,7 +174,7 @@ def generate_day_chart(station_id, station_name):
 
     plt.title(f"Statistiques - {station_name}")
     plt.xlabel("Heure")
-    plt.ylabel("Nombre")
+    plt.ylabel("Nombre de {bike_label()} ")
 
     plt.legend()
 
@@ -181,7 +182,9 @@ def generate_day_chart(station_id, station_name):
     plt.xticks(rotation=45)
     plt.gcf().autofmt_xdate()
     plt.tight_layout(rect=[0,0,1,0.95])
-
+    plt.gca().xaxis.set_major_formatter(
+    plt.matplotlib.dates.DateFormatter('%H:%M')
+)
     file = "chart.png"
 
     plt.savefig(file)
