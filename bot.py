@@ -105,15 +105,19 @@ def generate_day_chart(station_id, station_name):
     today = df[df["timestamp"].dt.date == datetime.now().date()]
 
     if today.empty:
+        send_telegram("📊 Pas encore assez de données pour aujourd'hui.")
         return None
         
     # choisir la colonne selon le mode
-    if BIKE_MODE == "mechanical":
+    config = load_config()
+    mode = config.get("bike_mode", "mechanical")
+    
+    if mode == "mechanical":
         column = "bikes_mech"
-
-    elif BIKE_MODE == "electrical":
+    
+    elif mode == "electrical":
         column = "bikes_elec"
-
+    
     else:
         column = "bikes_total"
         
