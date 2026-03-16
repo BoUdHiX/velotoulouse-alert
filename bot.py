@@ -1,4 +1,6 @@
 import requests
+import matplotlib
+matplotlib.use("Agg")
 import time
 import os
 import math
