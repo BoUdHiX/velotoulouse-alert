@@ -6,6 +6,8 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 import socket
 import json
+import matplotlib.pyplot as plt
+import pandas as pd
 
 # pour communication avec telegram
 TOKEN = os.environ["TOKEN"]
@@ -14,6 +16,9 @@ CHAT_ID = os.environ["CHAT_ID"]
 # url data Toulouse Métropole pour veloToulouse
 API_URL = "https://api.cyclocity.fr/contracts/toulouse/gbfs/station_status.json"
 INFO_URL = "https://api.cyclocity.fr/contracts/toulouse/gbfs/station_information.json"
+
+# Fichier historique
+HISTORY_FILE = "stations_history.csv"
 
 WATCHED_STATIONS = {
     "338": "GUILLAUMET - CEAT",
@@ -63,6 +68,101 @@ def save_config():
 
 def log(msg):
     print(f"[BOT] {msg}", flush=True)
+
+# ---------------------------
+# Fonction save data pour historique
+# ---------------------------
+
+def save_history(sid, data):
+
+    if not os.path.exists(HISTORY_FILE):
+
+        with open(HISTORY_FILE, "w") as f:
+            f.write("timestamp,station,bikes_mech,bikes_elec,bikes_total,docks\n")
+
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    with open(HISTORY_FILE, "a") as f:
+
+        f.write(
+            f"{now},{sid},{data['bikes']},{data['total']},{data['docks']}\n"
+        )
+
+# ---------------------------
+# Generation du graphique stat
+# ---------------------------
+
+def generate_day_chart(station_id, station_name):
+
+    df = pd.read_csv(HISTORY_FILE)
+
+    df = df[df["station"] == int(station_id)]
+
+    df["timestamp"] = pd.to_datetime(df["timestamp"])
+
+    today = df[df["timestamp"].dt.date == datetime.now().date()]
+
+    if today.empty:
+        return None
+        
+    # choisir la colonne selon le mode
+    if BIKE_MODE == "mechanical":
+        column = "bikes_mech"
+
+    elif BIKE_MODE == "electrical":
+        column = "bikes_elec"
+
+    else:
+        column = "bikes_total"
+        
+    plt.figure()
+
+    # vélos
+    plt.plot(
+        today["timestamp"],
+        today[column],
+        label=f"{bike_icon()} {bike_label()}"
+    )
+
+    # places libres
+    plt.plot(
+        today["timestamp"],
+        today["docks"],
+        label="🅿️ Places libres"
+    )
+
+    plt.title(f"📊 {station_name}")
+    plt.xlabel("Heure")
+    plt.ylabel("Nombre")
+
+    plt.legend()
+
+    plt.grid(True)
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+
+    file = "chart.png"
+
+    plt.savefig(file)
+    plt.close()
+
+    return file
+
+# ---------------------------
+# Envoi du graphique stat sur Telegram
+# ---------------------------
+
+def send_photo(path):
+
+    url = f"https://api.telegram.org/bot{TOKEN}/sendPhoto"
+
+    files = {"photo": open(path, "rb")}
+
+    data = {
+        "chat_id": CHAT_ID
+    }
+
+    requests.post(url, data=data, files=files)
 
 # ---------------------------
 # Fonction utilitaire type vélo
@@ -751,6 +851,8 @@ def check_stations():
             continue
 
         data = stations[sid]
+        # Build history Data
+        save_history(sid, data)
         bikes = data["bikes"]
 
         state = "OK"
@@ -916,6 +1018,23 @@ def check_commands():
         elif text == "/guillaumet":
 
             send_telegram(command_station("338", "GUILLAUMET - CEAT"))
+
+        elif text.startswith("/chart"):
+        
+            if "guillaumet" in text:
+        
+                chart = generate_day_chart("338", "GUILLAUMET - CEAT")
+        
+            elif "grynfogel" in text:
+        
+                chart = generate_day_chart("402", "GRYNFOGEL - GAILLARDIE")
+        
+            else:
+                send_telegram("❌ Station inconnue")
+                continue
+        
+            if chart:
+                send_photo(chart)
 
         elif text == "/grynfogel":
 
