@@ -93,8 +93,8 @@ def save_history(sid, data):
     """, (
         now,
         sid,
-        data["bikes_mech"],
-        data["bikes_elec"],
+        data["mechanical"],
+        data["electrical"],
         data["total"],
         data["docks"]
     ))
@@ -179,6 +179,9 @@ def generate_day_chart(station_id, station_name):
 
 def init_db():
 
+    # créer le dossier /data si il n'existe pas
+    os.makedirs("/data", exist_ok=True)
+    
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
 
