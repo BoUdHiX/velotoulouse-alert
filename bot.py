@@ -84,7 +84,7 @@ def save_history(sid, data):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
 
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now = datetime.now(ZoneInfo("Europe/Paris")).strftime("%Y-%m-%d %H:%M:%S")
 
     cursor.execute("""
         INSERT INTO station_history
@@ -114,6 +114,7 @@ def generate_day_chart(station_id, station_name):
     SELECT timestamp, bikes_mech, bikes_elec, bikes_total, docks
     FROM station_history
     WHERE station = ?
+    AND date(timestamp) = date('now','localtime')
     """
 
     df = pd.read_sql_query(query, conn, params=(station_id,))
@@ -121,7 +122,7 @@ def generate_day_chart(station_id, station_name):
 
     df["timestamp"] = pd.to_datetime(df["timestamp"])
 
-    today = df[df["timestamp"].dt.date == datetime.now().date()]
+    today = df[df["timestamp"].dt.date == datetime.now(ZoneInfo("Europe/Paris")).date()]
 
     if today.empty:
         send_telegram("📊 Pas encore assez de données pour aujourd'hui.")
