@@ -11,6 +11,7 @@ import json
 import matplotlib.pyplot as plt
 import pandas as pd
 import sqlite3
+import matplotlib.dates as mdates
 
 # pour communication avec telegram
 TOKEN = os.environ["TOKEN"]
@@ -123,7 +124,7 @@ def generate_day_chart(station_id, station_name):
     df["timestamp"] = pd.to_datetime(df["timestamp"])
     df["timestamp"] = df["timestamp"].dt.tz_localize(None)
 
-    now = datetime.now(ZoneInfo("Europe/Paris"))
+    now = datetime.now()
 
     start_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
@@ -182,9 +183,7 @@ def generate_day_chart(station_id, station_name):
     plt.xticks(rotation=45)
     plt.gcf().autofmt_xdate()
     plt.tight_layout(rect=[0,0,1,0.95])
-    plt.gca().xaxis.set_major_formatter(
-    plt.matplotlib.dates.DateFormatter('%H:%M')
-)
+    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
     file = "chart.png"
 
     plt.savefig(file)
