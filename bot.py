@@ -119,18 +119,22 @@ def generate_day_chart(station_id, station_name):
 
     df = pd.read_sql_query(query, conn, params=(station_id,))
     conn.close()
+  
+    df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.tz_localize("Europe/Paris")
 
-    df["timestamp"] = pd.to_datetime(df["timestamp"])
-
-    today = df[df["timestamp"].dt.date == datetime.now(ZoneInfo("Europe/Paris")).date()]
+    today = df[
+    df["timestamp"].dt.date
+    == datetime.now(ZoneInfo("Europe/Paris")).date()
+]
 
     if today.empty:
         send_telegram("📊 Pas encore assez de données pour aujourd'hui.")
         return None
         
     # choisir la colonne selon le mode
-    config = load_config() or {}
-    mode = config.get("bike_mode", "mechanical")
+    config = load_config()
+    
+    mode = config.get("bike_type", "mechanical")
     
     if mode == "mechanical":
         column = "bikes_mech"
@@ -172,12 +176,15 @@ def generate_day_chart(station_id, station_name):
 
     plt.grid(True)
     plt.xticks(rotation=45)
+    plt.gcf().autofmt_xdate()
     plt.tight_layout(rect=[0,0,1,0.95])
 
     file = "chart.png"
 
     plt.savefig(file)
     plt.close()
+    
+    print(today.tail())
 
     return file
 
