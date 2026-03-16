@@ -121,7 +121,7 @@ def generate_day_chart(station_id, station_name):
     conn.close()
   
     df["timestamp"] = pd.to_datetime(df["timestamp"])
-df["timestamp"] = df["timestamp"].dt.tz_localize(None)
+    df["timestamp"] = df["timestamp"].dt.tz_localize(None)
 
     now = datetime.now(ZoneInfo("Europe/Paris"))
 
