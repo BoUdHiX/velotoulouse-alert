@@ -10,6 +10,7 @@ import socket
 import json
 import matplotlib.pyplot as plt
 import pandas as pd
+import sqlite3
 
 # pour communication avec telegram
 TOKEN = os.environ["TOKEN"]
@@ -19,8 +20,9 @@ CHAT_ID = os.environ["CHAT_ID"]
 API_URL = "https://api.cyclocity.fr/contracts/toulouse/gbfs/station_status.json"
 INFO_URL = "https://api.cyclocity.fr/contracts/toulouse/gbfs/station_information.json"
 
-# Fichier historique
+# Fichier historique et chemin db
 HISTORY_FILE = "stations_history.csv"
+DB_FILE = "/data/stations.db"
 
 WATCHED_STATIONS = {
     "338": "GUILLAUMET - CEAT",
@@ -42,7 +44,6 @@ STADIUM_STATIONS = {
 last_alert_state = {}
 last_update_id = None
 
-
 # ---------------------------
 # Config persistante
 # ---------------------------
@@ -50,18 +51,21 @@ last_update_id = None
 CONFIG_FILE = "config.json"
 BIKE_TYPE = "mechanical"
 
-
 def load_config():
     global BIKE_TYPE
 
     if not os.path.exists(CONFIG_FILE):
         save_config()
-        return
 
-    with open(CONFIG_FILE, "r") as f:
-        data = json.load(f)
-        BIKE_TYPE = data.get("bike_type", "mechanical")
+    try:
+        with open(CONFIG_FILE, "r") as f:
+            data = json.load(f)
+    except:
+        data = {"bike_type": "mechanical"}
 
+    BIKE_TYPE = data.get("bike_type", "mechanical")
+
+    return data
 
 def save_config():
     with open(CONFIG_FILE, "w") as f:
@@ -77,18 +81,26 @@ def log(msg):
 
 def save_history(sid, data):
 
-    if not os.path.exists(HISTORY_FILE):
-
-        with open(HISTORY_FILE, "w") as f:
-            f.write("timestamp,station,bikes_mech,bikes_elec,bikes_total,docks\n")
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
 
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    with open(HISTORY_FILE, "a") as f:
+    cursor.execute("""
+        INSERT INTO station_history
+        (timestamp, station, bikes_mech, bikes_elec, bikes_total, docks)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, (
+        now,
+        sid,
+        data["bikes_mech"],
+        data["bikes_elec"],
+        data["total"],
+        data["docks"]
+    ))
 
-        f.write(
-            f"{now},{sid},{data['bikes']},{data['total']},{data['docks']}\n"
-        )
+    conn.commit()
+    conn.close()
 
 # ---------------------------
 # Generation du graphique stat
@@ -96,9 +108,16 @@ def save_history(sid, data):
 
 def generate_day_chart(station_id, station_name):
 
-    df = pd.read_csv(HISTORY_FILE)
+    conn = sqlite3.connect(DB_FILE)
 
-    df = df[df["station"] == int(station_id)]
+    query = """
+    SELECT timestamp, bikes_mech, bikes_elec, bikes_total, docks
+    FROM station_history
+    WHERE station = ?
+    """
+
+    df = pd.read_sql_query(query, conn, params=(station_id,))
+    conn.close()
 
     df["timestamp"] = pd.to_datetime(df["timestamp"])
 
@@ -109,7 +128,7 @@ def generate_day_chart(station_id, station_name):
         return None
         
     # choisir la colonne selon le mode
-    config = load_config()
+    config = load_config() or {}
     mode = config.get("bike_mode", "mechanical")
     
     if mode == "mechanical":
@@ -153,6 +172,30 @@ def generate_day_chart(station_id, station_name):
     plt.close()
 
     return file
+
+# ---------------------------
+# Creation base automatique
+# ---------------------------
+
+def init_db():
+
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS station_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        timestamp TEXT,
+        station INTEGER,
+        bikes_mech INTEGER,
+        bikes_elec INTEGER,
+        bikes_total INTEGER,
+        docks INTEGER
+    )
+    """)
+
+    conn.commit()
+    conn.close()
 
 # ---------------------------
 # Envoi du graphique stat sur Telegram
@@ -1086,8 +1129,9 @@ def check_commands():
 # ---------------------------
 
 STATION_NAMES, STATION_COORDS = load_station_info()
-load_config()
 
+init_db()
+load_config()
 log(f"Bot démarré sur {socket.gethostname()}")
 
 while True:
