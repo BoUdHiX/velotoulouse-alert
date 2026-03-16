@@ -146,17 +146,24 @@ def generate_day_chart(station_id, station_name):
     plt.plot(
         today["timestamp"],
         today[column],
-        label=f"{bike_icon()} {bike_label()}"
+        label=bike_label()
     )
 
     # places libres
     plt.plot(
         today["timestamp"],
         today["docks"],
-        label="🅿️ Places libres"
+        label="Places libres"
     )
 
-    plt.title(f"📊 {station_name}")
+    # zone sous la courbe vélos
+    plt.fill_between(today["timestamp"], today[column], alpha=0.2)
+
+    # ligne zéro
+    plt.axhline(0)
+    plt.axvline(datetime.now(), linestyle="--", alpha=0.5)
+
+    plt.title(f"Statistiques - {station_name}")
     plt.xlabel("Heure")
     plt.ylabel("Nombre")
 
@@ -164,7 +171,7 @@ def generate_day_chart(station_id, station_name):
 
     plt.grid(True)
     plt.xticks(rotation=45)
-    plt.tight_layout()
+    plt.tight_layout(rect=[0,0,1,0.95])
 
     file = "chart.png"
 
