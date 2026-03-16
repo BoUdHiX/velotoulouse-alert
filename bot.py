@@ -175,7 +175,7 @@ def generate_day_chart(station_id, station_name):
 
     plt.title(f"Statistiques - {station_name}")
     plt.xlabel("Heure")
-    plt.ylabel("Nombre de {bike_label()} ")
+    plt.ylabel(f"Nombre de {bike_label()} ")
 
     plt.legend()
 
