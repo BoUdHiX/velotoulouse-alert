@@ -122,11 +122,14 @@ def generate_day_chart(station_id, station_name):
   
     df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.tz_localize("Europe/Paris")
 
-    today = df[
-    df["timestamp"].dt.date
-    == datetime.now(ZoneInfo("Europe/Paris")).date()
-]
+    now = datetime.now(ZoneInfo("Europe/Paris"))
 
+    start_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    today = df[(df["timestamp"] >= start_day) & (df["timestamp"] <= now)]
+
+    today = today.sort_values("timestamp")
+    
     if today.empty:
         send_telegram("📊 Pas encore assez de données pour aujourd'hui.")
         return None
@@ -184,7 +187,7 @@ def generate_day_chart(station_id, station_name):
     plt.savefig(file)
     plt.close()
     
-    print(today.tail())
+    print("Nombre de points pour le graph :", len(today))
 
     return file
 
