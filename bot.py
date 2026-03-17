@@ -121,9 +121,10 @@ def generate_day_chart(station_id, station_name):
     df = pd.read_sql_query(query, conn, params=(station_id,))
     conn.close()
   
-    df["timestamp"] = pd.to_datetime(df["timestamp"])
-    df["timestamp"] = df["timestamp"].dt.tz_localize(None)
-
+    #df["timestamp"] = pd.to_datetime(df["timestamp"])
+    #df["timestamp"] = df["timestamp"].dt.tz_localize(None)
+    df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True).dt.tz_convert(None)
+    
     now = datetime.now()
 
     start_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -131,6 +132,7 @@ def generate_day_chart(station_id, station_name):
     today = df[(df["timestamp"] >= start_day) & (df["timestamp"] <= now)]
 
     today = today.sort_values("timestamp")
+    today = today.iloc[::3]
     
     if today.empty:
         send_telegram("📊 Pas encore assez de données pour aujourd'hui.")
@@ -165,17 +167,19 @@ def generate_day_chart(station_id, station_name):
         today["docks"],
         label="Places libres"
     )
+    
+    # FIX AXE X
+    plt.xlim(today["timestamp"].min(), today["timestamp"].max())
 
     # zone sous la courbe vélos
     plt.fill_between(today["timestamp"], today[column], alpha=0.2)
-
-    # ligne zéro
-    plt.axhline(0)
-    plt.axvline(datetime.now(), linestyle="--", alpha=0.5)
+    
+    # Lignes reperes
+    plt.axvline(now, linestyle="--", alpha=0.5)
 
     plt.title(f"Statistiques - {station_name}")
     plt.xlabel("Heure")
-    plt.ylabel(f"Nombre de {bike_label()} ")
+    plt.ylabel("Nombre")
 
     plt.legend()
 
