@@ -967,13 +967,6 @@ def check_stations():
     global last_alert_state
 
     stations = get_all_stations()
-    
-    capacity = STATION_CAPACITIES.get(sid, 0)
-
-    if capacity > 0:
-        fill_rate = data["total"] / capacity
-    else:
-        fill_rate = 0
 
     for sid, name in WATCHED_STATIONS.items():
 
@@ -981,8 +974,18 @@ def check_stations():
             continue
 
         data = stations[sid]
+
+        # ✅ Capacité + taux de remplissage
+        capacity = STATION_CAPACITIES.get(sid, 0)
+
+        if capacity > 0:
+            fill_rate = data["total"] / capacity
+        else:
+            fill_rate = 0
+
         # Build history Data
         save_history(sid, data)
+
         bikes = data["bikes"]
 
         state = "OK"
@@ -992,7 +995,7 @@ def check_stations():
 
         elif data["docks"] == 0:
             state = "FULL"
-        
+
         elif fill_rate >= 0.9:
             state = "ALMOST_FULL"
 
@@ -1003,25 +1006,25 @@ def check_stations():
             continue
 
         last = last_alert_state[sid]
-        
+
         if state != last["state"] or bikes != last["bikes"]:
-        
+
             if state == "OK":
-        
+
                 send_telegram(format_ok(name, data))
-        
+
             elif state == "FULL":
-        
+
                 send_telegram(format_full_alert(sid, name, data, stations))
-        
+
             elif state == "ALMOST_FULL":
 
                 send_telegram(format_almost_full_alert(sid, name, data, stations))
-            
+
             else:
-        
+
                 send_telegram(format_alert(sid, name, data, stations))
-        
+
             last_alert_state[sid] = {"state": state, "bikes": bikes}
 
 # ---------------------------
