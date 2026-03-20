@@ -622,7 +622,7 @@ def check_work_route():
     if sid_work in stations:
 
         s = stations[sid_work]
-        capacity_grynfogel = STATION_CAPACITIES.get(sid_home, "?")
+        capacity_grynfogel = STATION_CAPACITIES.get(sid_work, "?")
 
         msg += (
             "\n🏢 Station Grynfogel\n"
