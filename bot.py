@@ -142,7 +142,8 @@ def generate_day_chart(station_id, station_name):
     config = load_config()
     
     mode = config.get("bike_type", "mechanical")
-    capacity = STATION_CAPACITIES.get(station_id, "?")
+    #capacity = STATION_CAPACITIES.get(station_id, "?")
+    capacity = int(STATION_CAPACITIES.get(station_id, 0))
     
     if mode == "mechanical":
         column = "bikes_mech"
