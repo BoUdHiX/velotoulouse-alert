@@ -970,10 +970,10 @@ def check_stations():
     
     capacity = STATION_CAPACITIES.get(sid, 0)
 
-        if capacity > 0:
-            fill_rate = data["total"] / capacity
-        else:
-            fill_rate = 0
+    if capacity > 0:
+        fill_rate = data["total"] / capacity
+    else:
+        fill_rate = 0
 
     for sid, name in WATCHED_STATIONS.items():
 
