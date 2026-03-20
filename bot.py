@@ -279,15 +279,17 @@ def load_station_info():
 
     names = {}
     coords = {}
-
+    capacities = {}
+    
     for station in data["data"]["stations"]:
 
         sid = station["station_id"]
 
         names[sid] = station["name"]
         coords[sid] = (station["lat"], station["lon"])
+        capacities[sid] = station["capacity"]
 
-    return names, coords
+    return names, coords, capacities
 
 # ---------------------------
 # Fonction demande position
@@ -402,6 +404,7 @@ def get_all_stations():
 
         stations[sid] = {
             "name": STATION_NAMES.get(sid, ""),
+            "capacity": STATION_CAPACITIES.get(sid, ""),
             "mechanical": mechanical,
             "electrical": electrical,
             "bikes": bikes,
@@ -562,7 +565,7 @@ def command_stadium():
         data = stations[sid]
 
         msg += (
-            f"🚏 {name}\n"
+            f"🚏 {name} avec une capacité de {capacity} places \n"
             f"{bike_icon()} {bike_label()} : {data['bikes']} | "
             f"🚲 Total : {data['total']} | "
             f"🅿️ Places : {data['docks']}\n\n"
@@ -588,7 +591,7 @@ def check_work_route():
         s = stations[sid_home]
 
         msg += (
-            "🏠 Station Guillaumet\n"
+            f"🏠 Station Guillaumet avec {s['capacity']} places\n"
             f"{bike_icon()} {bike_label()} : {s['bikes']}\n"
             f"🚲 Vélos présents : {s['total']}\n"
             f"🅿️ Places libres : {s['docks']}\n"
@@ -605,7 +608,7 @@ def check_work_route():
         s = stations[sid_work]
 
         msg += (
-            "\n🏢 Station Grynfogel\n"
+            "\n🏢 Station Grynfogel avec {s['capacity']} places\n"
             f"{bike_icon()} {bike_label()} : {s['bikes']}\n"
             f"🚲 Vélos présents : {s['total']}\n"
             f"🅿️ Places libres : {s['docks']}\n"
@@ -863,7 +866,7 @@ def command_station(sid, name):
     data = stations[sid]
 
     msg = (
-        f"🚏 {name}\n\n"
+        f"🚏 {name} avec une capacité de {capacity} places\n\n"
         f"{bike_icon()} {bike_label()} : {data['bikes']}\n"
         f"🚲 Total vélos disponibles : {data['total']}\n"
         f"🅿️ Places libres : {data['docks']}"
@@ -1155,7 +1158,7 @@ def check_commands():
 # Initialisations
 # ---------------------------
 
-STATION_NAMES, STATION_COORDS = load_station_info()
+STATION_NAMES, STATION_COORDS, STATION_CAPACITIES = load_station_info()
 
 init_db()
 load_config()
