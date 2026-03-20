@@ -142,6 +142,7 @@ def generate_day_chart(station_id, station_name):
     config = load_config()
     
     mode = config.get("bike_type", "mechanical")
+    capacity = STATION_CAPACITIES.get(station_id, "?")
     
     if mode == "mechanical":
         column = "bikes_mech"
@@ -173,11 +174,19 @@ def generate_day_chart(station_id, station_name):
 
     # zone sous la courbe vélos
     plt.fill_between(today["timestamp"], today[column], alpha=0.2)
+    plt.fill_between(
+        today["timestamp"],
+        today["total"],
+        capacity,
+        where=(today["total"] >= capacity),
+        alpha=0.2
+    )
     
     # Lignes reperes
     plt.axvline(now, linestyle="--", alpha=0.5)
+    plt.axhline(capacity, linestyle="--", alpha=0.5, label="Capacité")
 
-    plt.title(f"Statistiques - {station_name}")
+    plt.title(f"Statistiques - {station_name} (Capacité : {capacity} vélos)")
     plt.xlabel("Heure")
     plt.ylabel("Nombre")
 
@@ -404,7 +413,6 @@ def get_all_stations():
 
         stations[sid] = {
             "name": STATION_NAMES.get(sid, ""),
-            "capacity": STATION_CAPACITIES.get(sid, ""),
             "mechanical": mechanical,
             "electrical": electrical,
             "bikes": bikes,
@@ -447,6 +455,7 @@ def format_station(name, data):
         f"🔧 {label} : {data['bikes']}\n"
         f"🚲 Total vélos disponibles : {data['total']}\n"
         f"🅿️ Places libres : {data['docks']}"
+        f"📊 Capacité : {capacity}\n"
     )
 
 # ---------------------------
@@ -540,6 +549,7 @@ def format_full_alert(sid, name, data, stations):
         f"🚏 {name}\n"
         f"🚲 Vélos présents : {data['total']}\n"
         f"🅿️ Places libres : {data['docks']}\n"
+        f"📊 Capacité : {capacity}\n"
     )
 
     msg += format_nearby_docks(sid, stations)
@@ -591,10 +601,11 @@ def check_work_route():
         s = stations[sid_home]
 
         msg += (
-            f"🏠 Station Guillaumet avec {s['capacity']} places\n"
+            "🏠 Station Guillaumet\n"
             f"{bike_icon()} {bike_label()} : {s['bikes']}\n"
             f"🚲 Vélos présents : {s['total']}\n"
             f"🅿️ Places libres : {s['docks']}\n"
+            f"📊 Capacité : {capacity}\n"
         )
 
         if s["bikes"] == 0:
@@ -608,10 +619,11 @@ def check_work_route():
         s = stations[sid_work]
 
         msg += (
-            "\n🏢 Station Grynfogel avec {s['capacity']} places\n"
+            "\n🏢 Station Grynfogel\n"
             f"{bike_icon()} {bike_label()} : {s['bikes']}\n"
             f"🚲 Vélos présents : {s['total']}\n"
             f"🅿️ Places libres : {s['docks']}\n"
+            f"📊 Capacité : {capacity}\n"
         )
 
         if s["docks"] == 0:
@@ -635,6 +647,7 @@ def format_alert(sid, name, data, stations):
         f"{bike_icon()} {bike_label()} : {data['bikes']}\n"
         f"🚲 Total vélos disponibles : {data['total']}\n"
         f"🅿️ Places libres : {data['docks']}"
+        f"📊 Capacité : {capacity}\n"
     )
 
     if data["bikes"] == 0:
