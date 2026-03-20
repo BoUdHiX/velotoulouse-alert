@@ -177,9 +177,9 @@ def generate_day_chart(station_id, station_name):
     plt.fill_between(today["timestamp"], today[column], alpha=0.2)
     plt.fill_between(
         today["timestamp"],
-        today["total"],
+        today["bikes_total"],
         capacity,
-        where=(today["total"] >= capacity),
+        where=(today["bikes_total"] >= capacity),
         alpha=0.2
     )
     
@@ -447,9 +447,10 @@ def send_telegram(text, keyboard=None):
 # Station info
 # ---------------------------
 
-def format_station(name, data):
+def format_station(sid, name, data):
 
     label = bike_label()
+    capacity = STATION_CAPACITIES.get(sid, "?")
 
     return (
         f"🚏 {name}\n\n"
@@ -543,6 +544,7 @@ def format_nearby_docks(sid, stations):
 def format_full_alert(sid, name, data, stations):
 
     now = datetime.now(ZoneInfo("Europe/Paris")).strftime("%Hh%M")
+    capacity = STATION_CAPACITIES.get(sid, "?")
 
     msg = (
         f"🚨 Station pleine\n\n"
@@ -574,9 +576,10 @@ def command_stadium():
             continue
 
         data = stations[sid]
+        capacity = STATION_CAPACITIES.get(sid, "?")
 
         msg += (
-            f"🚏 {name} avec une capacité de {capacity} places \n"
+            f"🚏 {name} (Capacité : {capacity}\n"
             f"{bike_icon()} {bike_label()} : {data['bikes']} | "
             f"🚲 Total : {data['total']} | "
             f"🅿️ Places : {data['docks']}\n\n"
@@ -600,13 +603,14 @@ def check_work_route():
     if sid_home in stations:
 
         s = stations[sid_home]
-
+        capacity_guillaumet = STATION_CAPACITIES.get(sid_home, "?")
+        
         msg += (
             "🏠 Station Guillaumet\n"
             f"{bike_icon()} {bike_label()} : {s['bikes']}\n"
             f"🚲 Vélos présents : {s['total']}\n"
             f"🅿️ Places libres : {s['docks']}\n"
-            f"📊 Capacité : {capacity}\n"
+            f"📊 Capacité : {capacity_guillaumet}\n"
         )
 
         if s["bikes"] == 0:
@@ -618,13 +622,14 @@ def check_work_route():
     if sid_work in stations:
 
         s = stations[sid_work]
+        capacity_grynfogel = STATION_CAPACITIES.get(sid_home, "?")
 
         msg += (
             "\n🏢 Station Grynfogel\n"
             f"{bike_icon()} {bike_label()} : {s['bikes']}\n"
             f"🚲 Vélos présents : {s['total']}\n"
             f"🅿️ Places libres : {s['docks']}\n"
-            f"📊 Capacité : {capacity}\n"
+            f"📊 Capacité : {capacity_grynfogel}\n"
         )
 
         if s["docks"] == 0:
@@ -640,6 +645,7 @@ def check_work_route():
 def format_alert(sid, name, data, stations):
 
     now = datetime.now(ZoneInfo("Europe/Paris")).strftime("%Hh%M")
+    capacity = STATION_CAPACITIES.get(sid, "?")
 
     msg = (
         f"🚨 Alerte vélo\n\n"
@@ -878,9 +884,10 @@ def command_station(sid, name):
         return "Station non trouvée"
 
     data = stations[sid]
+    capacity = STATION_CAPACITIES.get(sid, "?")
 
     msg = (
-        f"🚏 {name} avec une capacité de {capacity} places\n\n"
+        f"🚏 {name} (Capacité : {capacity}\n\n"
         f"{bike_icon()} {bike_label()} : {data['bikes']}\n"
         f"🚲 Total vélos disponibles : {data['total']}\n"
         f"🅿️ Places libres : {data['docks']}"
