@@ -910,7 +910,7 @@ def command_station(sid, name):
     capacity = STATION_CAPACITIES.get(sid, "?")
 
     msg = (
-        f"🚏 {name} (Capacité : {capacity}\n\n"
+        f"🚏 {name} (Capacité : {capacity})\n\n"
         f"{bike_icon()} {bike_label()} : {data['bikes']}\n"
         f"🚲 Total vélos disponibles : {data['total']}\n"
         f"🅿️ Places libres : {data['docks']}"
