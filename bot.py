@@ -456,7 +456,7 @@ def format_station(sid, name, data):
         f"🚏 {name}\n\n"
         f"🔧 {label} : {data['bikes']}\n"
         f"🚲 Total vélos disponibles : {data['total']}\n"
-        f"🅿️ Places libres : {data['docks']}"
+        f"🅿️ Places libres : {data['docks']}\n"
         f"📊 Capacité : {capacity}\n"
     )
 
@@ -579,7 +579,7 @@ def command_stadium():
         capacity = STATION_CAPACITIES.get(sid, "?")
 
         msg += (
-            f"🚏 {name} (Capacité : {capacity}\n"
+            f"🚏 {name} (Capacité : {capacity})\n"
             f"{bike_icon()} {bike_label()} : {data['bikes']} | "
             f"🚲 Total : {data['total']} | "
             f"🅿️ Places : {data['docks']}\n\n"
@@ -604,13 +604,14 @@ def check_work_route():
 
         s = stations[sid_home]
         capacity_guillaumet = STATION_CAPACITIES.get(sid_home, "?")
+        fill_rate = round((s["total"] / capacity_guillaumet) * 100) if capacity_guillaumet != "?" else "?"
         
         msg += (
             "🏠 Station Guillaumet\n"
             f"{bike_icon()} {bike_label()} : {s['bikes']}\n"
             f"🚲 Vélos présents : {s['total']}\n"
             f"🅿️ Places libres : {s['docks']}\n"
-            f"📊 Capacité : {capacity_guillaumet}\n"
+            f"📊 Capacité : {capacity_guillaumet} ({fill_rate}%)\n"
         )
 
         if s["bikes"] == 0:
@@ -623,13 +624,14 @@ def check_work_route():
 
         s = stations[sid_work]
         capacity_grynfogel = STATION_CAPACITIES.get(sid_work, "?")
+        fill_rate = round((s["total"] / capacity_grynfogel) * 100) if capacity_grynfogel != "?" else "?"
 
         msg += (
             "\n🏢 Station Grynfogel\n"
             f"{bike_icon()} {bike_label()} : {s['bikes']}\n"
             f"🚲 Vélos présents : {s['total']}\n"
             f"🅿️ Places libres : {s['docks']}\n"
-            f"📊 Capacité : {capacity_grynfogel}\n"
+            f"📊 Capacité : {capacity_grynfogel} ({fill_rate}%)\n"
         )
 
         if s["docks"] == 0:
@@ -653,7 +655,7 @@ def format_alert(sid, name, data, stations):
         f"🚏 {name}\n"
         f"{bike_icon()} {bike_label()} : {data['bikes']}\n"
         f"🚲 Total vélos disponibles : {data['total']}\n"
-        f"🅿️ Places libres : {data['docks']}"
+        f"🅿️ Places libres : {data['docks']}\n"
         f"📊 Capacité : {capacity}\n"
     )
 
