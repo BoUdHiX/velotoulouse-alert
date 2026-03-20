@@ -641,7 +641,7 @@ def check_work_route():
 
 
 # ---------------------------
-# Alerte
+# Alertes
 # ---------------------------
 
 def format_alert(sid, name, data, stations):
@@ -661,6 +661,27 @@ def format_alert(sid, name, data, stations):
 
     if data["bikes"] == 0:
         msg += format_nearby(sid, stations)
+
+    return msg
+
+def format_almost_full_alert(sid, name, data, stations):
+
+    capacity = STATION_CAPACITIES.get(sid, "?")
+
+    fill_rate = round((data["total"] / capacity) * 100) if capacity != "?" else "?"
+
+    now = datetime.now(ZoneInfo("Europe/Paris")).strftime("%Hh%M")
+
+    msg = (
+        f"⚠️ Station presque pleine\n\n"
+        f"🕓 {now}\n"
+        f"🚏 {name}\n"
+        f"🚲 Vélos présents : {data['total']}\n"
+        f"🅿️ Places libres : {data['docks']}\n"
+        f"📊 Capacité : {capacity} ({fill_rate}%)\n"
+    )
+
+    msg += format_nearby_docks(sid, stations)
 
     return msg
 
@@ -946,6 +967,13 @@ def check_stations():
     global last_alert_state
 
     stations = get_all_stations()
+    
+    capacity = STATION_CAPACITIES.get(sid, 0)
+
+        if capacity > 0:
+            fill_rate = data["total"] / capacity
+        else:
+            fill_rate = 0
 
     for sid, name in WATCHED_STATIONS.items():
 
@@ -964,6 +992,9 @@ def check_stations():
 
         elif data["docks"] == 0:
             state = "FULL"
+        
+        elif fill_rate >= 0.9:
+            state = "ALMOST_FULL"
 
         if sid not in last_alert_state:
 
@@ -972,7 +1003,7 @@ def check_stations():
             continue
 
         last = last_alert_state[sid]
-
+        
         if state != last["state"] or bikes != last["bikes"]:
         
             if state == "OK":
@@ -983,6 +1014,10 @@ def check_stations():
         
                 send_telegram(format_full_alert(sid, name, data, stations))
         
+            elif state == "ALMOST_FULL":
+
+                send_telegram(format_almost_full_alert(sid, name, data, stations))
+            
             else:
         
                 send_telegram(format_alert(sid, name, data, stations))
