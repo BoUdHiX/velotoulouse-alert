@@ -142,8 +142,12 @@ def generate_day_chart(station_id, station_name):
     config = load_config()
     
     mode = config.get("bike_type", "mechanical")
-    #capacity = STATION_CAPACITIES.get(station_id, "?")
-    capacity = int(STATION_CAPACITIES.get(station_id, 0))
+    capacity = STATION_CAPACITIES.get(station_id, 0)
+
+    if capacity > 0:
+        today["fill_rate"] = (today["bikes_total"] / capacity) * 100
+    else:
+        today["fill_rate"] = 0
     
     if mode == "mechanical":
         column = "bikes_mech"
@@ -153,43 +157,71 @@ def generate_day_chart(station_id, station_name):
     
     else:
         column = "bikes_total"
-        
-    plt.figure()
+
+   fig, ax1 = plt.subplots()
 
     # vélos
-    plt.plot(
+    ax1.plot(
         today["timestamp"],
         today[column],
         label=bike_label()
     )
-
+    
     # places libres
-    plt.plot(
+    ax1.plot(
         today["timestamp"],
         today["docks"],
         label="Places libres"
     )
     
-    # FIX AXE X
-    plt.xlim(today["timestamp"].min(), today["timestamp"].max())
-
-    # zone sous la courbe vélos
-    plt.fill_between(today["timestamp"], today[column], alpha=0.2)
-    plt.fill_between(
+    # axe Y principal
+    ax1.set_ylabel("Nombre de vélos")
+    
+    # axe secondaire %
+    ax2 = ax1.twinx()
+    
+    ax2.plot(
         today["timestamp"],
-        today["bikes_total"],
-        capacity,
-        where=(today["bikes_total"] >= capacity),
-        alpha=0.2
+        today["fill_rate"],
+        linestyle="--",
+        label="Remplissage (%)"
+    )
+    ax2.fill_between(
+    today["timestamp"],
+    today["fill_rate"],
+    90,
+    where=(today["fill_rate"] >= 90),
+    alpha=0.15
     )
     
-    # Lignes reperes
-    plt.axvline(now, linestyle="--", alpha=0.5)
-    plt.axhline(capacity, linestyle="--", alpha=0.5, label="Capacité")
-
+    ax2.set_ylabel("Remplissage (%)")
+    
+    # ligne capacité
+    ax1.axhline(capacity, linestyle="--", alpha=0.5)
+    
+    # ligne seuil 90%
+    ax2.axhline(90, linestyle="--", alpha=0.5)
+    
+    # ligne temps actuel
+    ax1.axvline(now, linestyle="--", alpha=0.5)
+    
+    # limite axe X
+    ax1.set_xlim(today["timestamp"].min(), today["timestamp"].max())
+    
+    # titre
     plt.title(f"Statistiques - {station_name} (Capacité : {capacity} vélos)")
     plt.xlabel("Heure")
-    plt.ylabel("Nombre")
+    
+    # légende combinée
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(lines1 + lines2, labels1 + labels2)
+    
+    plt.grid(True)
+    plt.xticks(rotation=45)
+    plt.gcf().autofmt_xdate()
+    plt.tight_layout(rect=[0,0,1,0.95])
+    ax1.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
 
     plt.legend()
 
