@@ -158,7 +158,7 @@ def generate_day_chart(station_id, station_name):
     else:
         column = "bikes_total"
 
-   fig, ax1 = plt.subplots()
+    fig, ax1 = plt.subplots()
 
     # vélos
     ax1.plot(
