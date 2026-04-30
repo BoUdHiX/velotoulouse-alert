@@ -10,8 +10,10 @@ import socket
 import json
 import matplotlib.pyplot as plt
 import pandas as pd
-import sqlite3
+import psycopg2
 import matplotlib.dates as mdates
+
+DATABASE_URL = os.environ["DATABASE_URL"]
 
 # pour communication avec telegram
 TOKEN = os.environ["TOKEN"]
@@ -23,7 +25,6 @@ INFO_URL = "https://api.cyclocity.fr/contracts/toulouse/gbfs/station_information
 
 # Fichier historique et chemin db
 HISTORY_FILE = "stations_history.csv"
-DB_FILE = "/data/stations.db"
 
 WATCHED_STATIONS = {
     "338": "GUILLAUMET - CEAT",
@@ -82,7 +83,7 @@ def log(msg):
 
 def save_history(sid, data):
 
-    conn = sqlite3.connect(DB_FILE)
+    conn = psycopg2.connect(DATABASE_URL)
     cursor = conn.cursor()
 
     now = datetime.now(ZoneInfo("Europe/Paris")).strftime("%Y-%m-%d %H:%M:%S")
@@ -90,7 +91,7 @@ def save_history(sid, data):
     cursor.execute("""
         INSERT INTO station_history
         (timestamp, station, bikes_mech, bikes_elec, bikes_total, docks)
-        VALUES (?, ?, ?, ?, ?, ?)
+        VALUES (%s, %s, %s, %s, %s, %s)
     """, (
         now,
         sid,
@@ -109,7 +110,7 @@ def save_history(sid, data):
 
 def generate_day_chart(station_id, station_name):
 
-    conn = sqlite3.connect(DB_FILE)
+    conn = psycopg2.connect(DATABASE_URL)
 
     query = """
     SELECT timestamp, bikes_mech, bikes_elec, bikes_total, docks
@@ -238,33 +239,6 @@ def generate_day_chart(station_id, station_name):
     print("Nombre de points pour le graph :", len(today))
 
     return file
-
-# ---------------------------
-# Creation base automatique
-# ---------------------------
-
-def init_db():
-
-    # créer le dossier /data si il n'existe pas
-    os.makedirs("/data", exist_ok=True)
-    
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS station_history (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        timestamp TEXT,
-        station INTEGER,
-        bikes_mech INTEGER,
-        bikes_elec INTEGER,
-        bikes_total INTEGER,
-        docks INTEGER
-    )
-    """)
-
-    conn.commit()
-    conn.close()
 
 # ---------------------------
 # Envoi du graphique stat sur Telegram
@@ -1253,7 +1227,6 @@ def check_commands():
 
 STATION_NAMES, STATION_COORDS, STATION_CAPACITIES = load_station_info()
 
-init_db()
 load_config()
 log(f"Bot démarré sur {socket.gethostname()}")
 
